@@ -1,0 +1,135 @@
+<title><!--GAME_NAME--></title>
+<link rel="icon" href="data:,">
+<!--THEME_FONTS-->
+<style>
+  :root {
+    color-scheme: dark;
+    --lacquer: #0f0b0e;
+    --lacquer-2: #1a1216;
+    --washi: #eadcbf;
+    --washi-dim: #a89a80;
+    --vermilion: #c9432f;
+    --gold: #d4a14a;
+    --indigo: #1d2748;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(ellipse at 50% 0%, #2a1a1c 0%, transparent 60%),
+      var(--lacquer);
+    color: var(--washi);
+    font-family: "Zen Maru Gothic", "DotGothic16", "MS Gothic", "Osaka-Mono", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-inline: 16px;
+    padding-block: 12px;
+    box-sizing: border-box;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    --reserve: 64px;
+  }
+  body.touch { --reserve: 196px; }
+  .frame {
+    position: relative;
+    width: min(100%, calc((100dvh - var(--reserve)) * 16 / 9));
+    max-width: 1280px;
+    aspect-ratio: 16 / 9;
+    padding: 6px;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, #2b1c18, #120c0c);
+    border: 1px solid #3a2620;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px #000, 0 18px 50px #000c, inset 0 0 0 1px #5a3a2a55;
+  }
+  .frame::before, .frame::after {
+    content: ""; position: absolute; width: 10px; height: 10px; border-color: var(--gold); border-style: solid; opacity: .7;
+  }
+  .frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; border-radius: 6px 0 0 0; }
+  .frame::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; border-radius: 0 0 6px 0; }
+  #screen {
+    display: block; width: 100%; height: 100%;
+    image-rendering: auto;
+    background: #000; border-radius: 2px; outline: none;
+  }
+  .bar {
+    width: min(100%, calc((100dvh - var(--reserve)) * 16 / 9));
+    max-width: 1280px;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+    font-size: 13px; color: var(--washi-dim); letter-spacing: .02em;
+  }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .bar { font-family: "Shippori Mincho", serif; }
+  kbd {
+    font-family: "Zen Maru Gothic", "DotGothic16", sans-serif; font-weight: 500; font-size: 12px; color: #2a2018;
+    background: linear-gradient(180deg, #f4ead5, #e2d3b4); border: 0; border-bottom: 2px solid #2a2018;
+    border-radius: 1px; padding: 0 6px; margin-right: 4px;
+  }
+  button.chip {
+    font-family: "Shippori Mincho", serif; font-weight: 700; font-size: 13px; color: #2a2018;
+    background: linear-gradient(180deg, #f4ead5, #e2d3b4); border: 0; border-top: 2px solid #2a2018; border-bottom: 2px solid #2a2018;
+    border-radius: 1px; padding: 4px 12px; cursor: pointer;
+  }
+  button.chip:hover { color: var(--vermilion); }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  body.touch .keys { display: none; }
+
+  /* Touch pad */
+  .pad { display: none; width: min(100%, 520px); justify-content: space-between; align-items: center; gap: 12px; }
+  body.touch .pad { display: flex; }
+  .dpad { position: relative; width: 138px; height: 138px; flex: none; }
+  .dpad button, .ab button, .mid button {
+    position: absolute; font-family: "Shippori Mincho", serif; font-weight: 800; color: #2a2018;
+    background: radial-gradient(ellipse at 40% 30%, #f6eedb, #e0d0ae); border: 0; box-shadow: inset 0 0 0 2px #2a2018, 0 3px 8px #0008;
+    touch-action: none; -webkit-tap-highlight-color: transparent;
+  }
+  .dpad button { width: 46px; height: 46px; border-radius: 6px; font-size: 18px; }
+  .dpad [data-k="up"] { left: 46px; top: 0; }
+  .dpad [data-k="down"] { left: 46px; bottom: 0; }
+  .dpad [data-k="left"] { left: 0; top: 46px; }
+  .dpad [data-k="right"] { right: 0; top: 46px; }
+  .dpad .hub { position: absolute; left: 46px; top: 46px; width: 46px; height: 46px; background: #d9c8a4; box-shadow: inset 0 0 0 2px #2a2018; border-radius: 2px; }
+  .mid { position: relative; width: 70px; height: 40px; flex: none; }
+  .mid button { inset: 0; border-radius: 20px; font-size: 12px; letter-spacing: .08em; }
+  .ab { position: relative; width: 140px; height: 120px; flex: none; }
+  .ab button { width: 62px; height: 62px; border-radius: 50%; font-size: 20px; }
+  .ab [data-k="a"] { right: 0; top: 4px; color: #f5ecd8; border-radius: 6px; transform: rotate(-4deg); background: linear-gradient(180deg, #c33a24, #8e2414); box-shadow: inset 0 0 0 3px #f5ecd8aa, 0 3px 8px #0008; }
+  .ab [data-k="b"] { left: 0; bottom: 4px; }
+  .pad button.on { filter: brightness(0.82); transform: translateY(1px); }
+  .ab [data-k="a"].on { transform: rotate(-4deg) translateY(1px); }
+</style>
+
+<div class="frame"><canvas id="screen" tabindex="0" aria-label="<!--GAME_NAME--> game screen"></canvas></div>
+
+<div class="pad" aria-label="Touch controls">
+  <div class="dpad">
+    <button data-k="up" aria-label="Up">▲</button>
+    <button data-k="left" aria-label="Left">◀</button>
+    <div class="hub"></div>
+    <button data-k="right" aria-label="Right">▶</button>
+    <button data-k="down" aria-label="Down">▼</button>
+  </div>
+  <div class="mid"><button data-k="start" aria-label="Menu">MENU</button></div>
+  <div class="ab">
+    <button data-k="b" aria-label="B: cancel or run">B</button>
+    <button data-k="a" aria-label="A: confirm or talk">A</button>
+  </div>
+</div>
+
+<div class="bar">
+  <div class="keys">
+    <span><kbd>←↑↓→</kbd>move</span>
+    <span><kbd>Z</kbd>talk / confirm</span>
+    <span><kbd>X</kbd>cancel · hold to run</span>
+    <span><kbd>C</kbd>menu</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="chip" id="padBtn" type="button">Touch pad</button>
+    <button class="chip" id="sndBtn" type="button">Sound: on</button>
+  </div>
+</div>

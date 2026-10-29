@@ -1,0 +1,8 @@
+{
+  "_about": "What the Cincinnatus slice's app-made art is, for tools/wire_art.py --game cincinnatus <folder of originals>. Names are art-prompts.md's.",
+  "paintings": { "area_farm": [2560, 1440, 92], "room_hut": [1280, 720, 92], "bg_battle_algidus": [1280, 720, 92], "ins_toga": [null, null, 90] },
+  "ground": ["ground_area_farm", "ground_room_hut"],
+  "chars": { "titus_17": 88, "cincinnatus_50": 92, "racilia_45": 86, "envoy_a": 92, "envoy_b": 90, "aequi_30": 92, "aequi_40": 94 },
+  "poses": { "titus_17": 86, "cincinnatus_50": 90 },
+  "portraits": ["titus_17", "cincinnatus_50"]
+}

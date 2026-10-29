@@ -1,0 +1,10 @@
+# build outputs and test output (a game's own pages, wherever it is built)
+pub_*/
+/site/
+/sample-game/site/
+logs_tests/
+shots/
+__pycache__/
+node_modules/
+# raw art originals live with each game's assets repo, never here
+/sample-game/assets/raw/

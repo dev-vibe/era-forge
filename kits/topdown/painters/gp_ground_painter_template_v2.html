@@ -1,0 +1,303 @@
+<title>__TITLE__</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a full-height workbench. Slim tool rail on the left, painting canvas in the middle, layer and export panel on the right; both stack on a phone. */
+:root {
+  --bg: #f3f2ee; --panel: #fbfaf7; --ink: #1d2230; --muted: #667085; --line: #d9d6cc; --chip: #e9e7df;
+  --accent: #27408b; --accent-ink: #ffffff; --ok: #0a7d3a; --stop: #b42318; --canvas: #1a1d26;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12141b; --panel: #1a1d27; --ink: #e8eaf2; --muted: #98a1b5; --line: #2d3242; --chip: #262a38;
+  --accent: #8ea6ff; --accent-ink: #0c1230; --ok: #4ade80; --stop: #ff8a7a; --canvas: #0c0e13; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12141b; --panel: #1a1d27; --ink: #e8eaf2; --muted: #98a1b5; --line: #2d3242; --chip: #262a38;
+  --accent: #8ea6ff; --accent-ink: #0c1230; --ok: #4ade80; --stop: #ff8a7a; --canvas: #0c0e13; color-scheme: dark; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--sans); }
+* { box-sizing: border-box; }
+.app { height: 100vh; height: 100dvh; min-height: 34rem; display: grid; grid-template-columns: 11rem minmax(0, 1fr) 16rem; grid-template-rows: auto minmax(0, 1fr); gap: 0; }
+header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; padding: .6rem 1rem; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { margin: 0; font-size: 1rem; font-weight: 600; letter-spacing: .01em; }
+header p { margin: 0; color: var(--muted); font-size: .8125rem; }
+.rail, .side { background: var(--panel); padding: .75rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.rail { border-right: 1px solid var(--line); }
+.side { border-left: 1px solid var(--line); }
+h2 { margin: 0 0 .4rem; font-size: .6875rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.group { display: flex; flex-direction: column; gap: .35rem; }
+button, select { font: inherit; color: var(--ink); }
+.btn { display: flex; align-items: center; gap: .5rem; width: 100%; min-height: 2.25rem; padding: .4rem .6rem; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; cursor: pointer; text-align: left; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn kbd { margin-left: auto; font: 500 .6875rem var(--mono); opacity: .7; }
+.swatch { width: .8rem; height: .8rem; border-radius: 3px; flex: none; border: 1px solid rgba(0,0,0,.35); }
+.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; justify-content: center; }
+label.row { display: flex; flex-direction: column; gap: .2rem; font-size: .8125rem; }
+label.row span b { font-family: var(--mono); font-weight: 500; float: right; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.stage { position: relative; background: var(--canvas); min-width: 0; min-height: 0; overflow: hidden; touch-action: none; }
+canvas#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+.hud { position: absolute; left: .6rem; bottom: .6rem; padding: .25rem .5rem; border-radius: 4px; background: rgba(10,12,18,.72); color: #e8eaf2; font: 500 .75rem var(--mono); pointer-events: none; }
+.hint { position: absolute; right: .6rem; top: .6rem; max-width: 18rem; padding: .4rem .6rem; border-radius: 6px; background: rgba(10,12,18,.72); color: #e8eaf2; font-size: .75rem; pointer-events: none; }
+.note { font-size: .8125rem; color: var(--muted); margin: 0; }
+.legend { display: grid; gap: .3rem; font-size: .8125rem; }
+.legend div { display: flex; gap: .5rem; align-items: center; }
+.status { min-height: 1.2em; font-size: .8125rem; color: var(--ok); margin: 0; }
+.status.err { color: var(--stop); }
+.preview { display: none; }
+.preview.on { display: block; }
+.preview img { width: 100%; border: 1px solid var(--line); border-radius: 6px; display: block; }
+@media (max-width: 52rem) {
+  .app { height: auto; min-height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 70vh auto; }
+  .rail { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
+  .rail .group { flex: 1 1 10rem; }
+  .side { border-left: 0; border-top: 1px solid var(--line); }
+  header, .rail, .side { padding-inline: 1rem; }
+}
+@media (prefers-reduced-motion: no-preference) { .btn { transition: border-color .12s; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Ground Painter</h1>
+    <p>__INTRO__</p>
+  </header>
+
+  <nav class="rail" aria-label="Tools">
+    <div class="group" role="group" aria-label="Action">
+      <h2>Action</h2>
+      <button class="btn" data-mode="paint" aria-pressed="true">Paint<kbd>P</kbd></button>
+      <button class="btn" data-mode="erase" aria-pressed="false">Erase<kbd>E</kbd></button>
+    </div>
+    <div class="group" role="group" aria-label="Tool">
+      <h2>Tool</h2>
+      <button class="btn" data-tool="brush" aria-pressed="true">Brush<kbd>B</kbd></button>
+      <button class="btn" data-tool="poly" aria-pressed="false">Polygon<kbd>G</kbd></button>
+      <button class="btn" data-tool="pan" aria-pressed="false">Pan<kbd>H</kbd></button>
+    </div>
+    <div class="group">
+      <h2>Brush</h2>
+      <label class="row"><span>Size <b id="sizeV">14</b></span><input id="size" type="range" min="2" max="80" value="14"></label>
+    </div>
+  </nav>
+
+  <main class="stage" id="stage">
+    <canvas id="view" aria-label="Town painting with walkable area overlay"></canvas>
+    <div class="hud" id="hud">x 0, y 0</div>
+    <div class="hint" id="hint"></div>
+  </main>
+
+  <aside class="side">
+    <div class="group">
+      <h2>View</h2>
+      <label class="row"><span>Overlay strength <b id="opV">55%</b></span><input id="op" type="range" min="10" max="100" value="55"></label>
+      <button class="btn" id="dim" aria-pressed="true">Dim the painting<kbd>D</kbd></button>
+      <button class="btn" id="showG" aria-pressed="true"><span class="swatch" style="background:#00ff00"></span>Show walkable</button>
+      <button class="btn" id="fit">Fit to window<kbd>F</kbd></button>
+    </div>
+    <div class="group">
+      <h2>Edit</h2>
+      <div style="display:flex; gap:.35rem">
+        <button class="btn" id="undo">Undo<kbd>Z</kbd></button>
+        <button class="btn" id="redo">Redo<kbd>Y</kbd></button>
+      </div>
+      <button class="btn" id="clearLayer">Clear all walkable</button>
+      <button class="btn" id="reset">Reset to the game's current map</button>
+    </div>
+    <div class="group">
+      <h2>Export</h2>
+      <button class="btn primary" id="expWalk">Save walkable only (PNG)</button>
+      <button class="btn" id="expMap">Save green over painting (PNG)</button>
+      <p class="status" id="status" role="status"></p>
+      <div class="preview" id="preview"><p class="note">Saving is blocked here. Press and hold (or right-click) the picture to save it.</p><img id="previewImg" alt="Exported ground map"></div>
+    </div>
+    <div class="group">
+      <h2>Legend</h2>
+      <div class="legend">
+        <div><span class="swatch" style="background:#00ff00"></span>Ground a person can stand on</div>
+      </div>
+      <p class="note">Start from the current map. Fix what is wrong, then attach the saved PNG(s) to the chat. "Walkable only" (green on black) is the one the game is built from.</p>
+    </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  const W = 1920, H = 1080;              // working size; export doubles it to 3840 x 2160
+  const SRC = { img: "__IMG__", green: "__GREEN__" };
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage"), view = $("view"), vctx = view.getContext("2d");
+  const mk = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+  const layers = { green: mk(W, H) };
+  const lctx = { green: layers.green.getContext("2d", { willReadFrequently: true }) };
+  const COLORS = { green: [0, 255, 0] };
+  let painting = null;
+  const st = { layer: "green", mode: "paint", tool: "brush", size: 14, op: 0.55, dim: true, showG: true,
+               s: 1, ox: 0, oy: 0, poly: [], drawing: false, last: null, pan: null, space: false, mouse: null };
+  const undoS = [], redoS = [];
+
+  const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  const setStatus = (t, err) => { const s = $("status"); s.textContent = t || ""; s.className = "status" + (err ? " err" : ""); };
+
+  /* ---------- layers: snapshots as alpha arrays ---------- */
+  function alphaOf(name) { const d = lctx[name].getImageData(0, 0, W, H).data; const a = new Uint8Array(W * H); for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3]; return a; }
+  function putAlpha(name, a) { const id = lctx[name].createImageData(W, H), d = id.data, c = COLORS[name]; for (let i = 0; i < a.length; i++) { if (a[i]) { d[i*4] = c[0]; d[i*4+1] = c[1]; d[i*4+2] = c[2]; d[i*4+3] = a[i]; } } lctx[name].putImageData(id, 0, 0); }
+  function pushUndo(name) { undoS.push({ name, a: alphaOf(name) }); if (undoS.length > 30) undoS.shift(); redoS.length = 0; refreshButtons(); }
+  function undo() { const s = undoS.pop(); if (!s) return; redoS.push({ name: s.name, a: alphaOf(s.name) }); putAlpha(s.name, s.a); draw(); refreshButtons(); save(); }
+  function redo() { const s = redoS.pop(); if (!s) return; undoS.push({ name: s.name, a: alphaOf(s.name) }); putAlpha(s.name, s.a); draw(); refreshButtons(); save(); }
+  function refreshButtons() { $("undo").disabled = !undoS.length; $("redo").disabled = !redoS.length; $("undo").style.opacity = undoS.length ? 1 : .5; $("redo").style.opacity = redoS.length ? 1 : .5; }
+
+  /* ---------- view transform ---------- */
+  function resize() {
+    const r = stage.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    view.width = Math.max(1, Math.round(r.width * dpr)); view.height = Math.max(1, Math.round(r.height * dpr));
+    const wasEmpty = !st.fitted; st.dpr = dpr;
+    if (r.width > 40 && r.height > 40 && painting && (wasEmpty || !st.touched || st.lastW < 40 || st.lastH < 40)) { st.fitted = true; st.lastW = r.width; st.lastH = r.height; fit(); return; }
+    st.lastW = r.width; st.lastH = r.height; draw();
+  }
+  function fit() { const cw = view.width / st.dpr, ch = view.height / st.dpr; st.s = Math.min(cw / W, ch / H) * 0.98; st.ox = (cw - W * st.s) / 2; st.oy = (ch - H * st.s) / 2; draw(); }
+  const toWorld = (px, py) => [(px - st.ox) / st.s, (py - st.oy) / st.s];
+  function evPos(e) { const r = view.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+
+  function draw() {
+    const d = st.dpr || 1; vctx.setTransform(d, 0, 0, d, 0, 0);
+    vctx.clearRect(0, 0, view.width, view.height);
+    if (!painting) return;
+    vctx.imageSmoothingEnabled = st.s < 1;
+    vctx.save(); vctx.translate(st.ox, st.oy); vctx.scale(st.s, st.s);
+    vctx.drawImage(painting, 0, 0, W, H);
+    if (st.dim) { vctx.fillStyle = "rgba(8,10,16,.45)"; vctx.fillRect(0, 0, W, H); }
+    vctx.globalAlpha = st.op;
+    if (st.showG) vctx.drawImage(layers.green, 0, 0);
+    vctx.globalAlpha = 1;
+    // polygon in progress
+    if (st.poly.length) {
+      vctx.lineWidth = 2 / st.s; vctx.strokeStyle = st.mode === "erase" ? "#ffffff" : "#00ff00";
+      vctx.fillStyle = vctx.strokeStyle;
+      vctx.beginPath(); st.poly.forEach(([x, y], i) => i ? vctx.lineTo(x, y) : vctx.moveTo(x, y));
+      if (st.mouse) { const [mx, my] = toWorld(st.mouse[0], st.mouse[1]); vctx.lineTo(mx, my); } vctx.stroke();
+      st.poly.forEach(([x, y]) => { vctx.beginPath(); vctx.arc(x, y, 3 / st.s, 0, 7); vctx.fill(); });
+    }
+    // brush cursor
+    if (st.tool === "brush" && st.mouse && !st.pan) {
+      const [mx, my] = toWorld(st.mouse[0], st.mouse[1]);
+      vctx.lineWidth = 1.5 / st.s; vctx.strokeStyle = "#ffffff"; vctx.beginPath(); vctx.arc(mx, my, st.size / 2, 0, 7); vctx.stroke();
+      vctx.strokeStyle = "#000000"; vctx.lineWidth = .75 / st.s; vctx.beginPath(); vctx.arc(mx, my, st.size / 2 + 1 / st.s, 0, 7); vctx.stroke();
+    }
+    vctx.restore();
+  }
+
+  /* ---------- painting operations ---------- */
+  function applyOp(ctx) { ctx.globalCompositeOperation = st.mode === "erase" ? "destination-out" : "source-over"; const c = COLORS[st.layer]; ctx.fillStyle = ctx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`; }
+  function stroke(a, b) { const ctx = lctx[st.layer]; applyOp(ctx); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = st.size; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.globalCompositeOperation = "source-over"; }
+  function dot(p) { const ctx = lctx[st.layer]; applyOp(ctx); ctx.beginPath(); ctx.arc(p[0], p[1], st.size / 2, 0, 7); ctx.fill(); ctx.globalCompositeOperation = "source-over"; }
+  function closePoly() {
+    if (st.poly.length < 3) { st.poly = []; draw(); return; }
+    pushUndo(st.layer); const ctx = lctx[st.layer]; applyOp(ctx);
+    ctx.beginPath(); st.poly.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+    st.poly = []; draw(); save();
+  }
+
+  view.addEventListener("pointerdown", (e) => {
+    view.setPointerCapture(e.pointerId); const p = evPos(e); st.mouse = p;
+    if (e.button === 1 || st.space || st.tool === "pan" || e.button === 2) { st.pan = { x: p[0], y: p[1], ox: st.ox, oy: st.oy }; view.style.cursor = "grabbing"; return; }
+    if (e.button !== 0) return;
+    const w = toWorld(p[0], p[1]);
+    if (st.tool === "brush") { pushUndo(st.layer); st.drawing = true; st.last = w; dot(w); draw(); }
+    else if (st.tool === "poly") {
+      if (st.poly.length >= 3) { const f = st.poly[0]; if (Math.hypot((f[0] - w[0]) * st.s, (f[1] - w[1]) * st.s) < 10) { closePoly(); return; } }
+      st.poly.push(w); draw();
+    }
+  });
+  view.addEventListener("pointermove", (e) => {
+    const p = evPos(e); st.mouse = p; const w = toWorld(p[0], p[1]);
+    $("hud").textContent = `x ${Math.round(w[0] * 2)}, y ${Math.round(w[1] * 2)}  ·  ${Math.round(st.s * 100)}%`;
+    if (st.pan) { st.touched = true; st.ox = st.pan.ox + (p[0] - st.pan.x); st.oy = st.pan.oy + (p[1] - st.pan.y); draw(); return; }
+    if (st.drawing) { stroke(st.last, w); st.last = w; }
+    draw();
+  });
+  const endPtr = () => { if (st.drawing) { st.drawing = false; save(); } if (st.pan) { st.pan = null; view.style.cursor = cursorFor(); } };
+  view.addEventListener("pointerup", endPtr); view.addEventListener("pointercancel", endPtr);
+  view.addEventListener("pointerleave", () => { st.mouse = null; draw(); });
+  view.addEventListener("dblclick", () => { if (st.tool === "poly") closePoly(); });
+  view.addEventListener("contextmenu", (e) => e.preventDefault());
+  view.addEventListener("wheel", (e) => {
+    e.preventDefault(); const p = evPos(e), w = toWorld(p[0], p[1]); const k = Math.exp(-e.deltaY * 0.0015);
+    st.touched = true; st.s = Math.min(12, Math.max(0.15, st.s * k)); st.ox = p[0] - w[0] * st.s; st.oy = p[1] - w[1] * st.s; draw();
+  }, { passive: false });
+  const cursorFor = () => st.tool === "pan" ? "grab" : "crosshair";
+
+  /* ---------- UI wiring ---------- */
+  function press(group, attr, val) { document.querySelectorAll(`[data-${group}]`).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[group] === val))); st[attr] = val; }
+    document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => { press("mode", "mode", b.dataset.mode); draw(); }));
+  document.querySelectorAll("[data-tool]").forEach((b) => b.addEventListener("click", () => { press("tool", "tool", b.dataset.tool); st.poly = []; view.style.cursor = cursorFor(); updateHint(); draw(); }));
+  const toggle = (id, key) => $(id).addEventListener("click", () => { st[key] = !st[key]; $(id).setAttribute("aria-pressed", String(st[key])); draw(); });
+  toggle("dim", "dim"); toggle("showG", "showG");
+  $("size").addEventListener("input", (e) => { st.size = +e.target.value; $("sizeV").textContent = st.size; draw(); });
+  $("op").addEventListener("input", (e) => { st.op = e.target.value / 100; $("opV").textContent = e.target.value + "%"; draw(); });
+  $("fit").addEventListener("click", fit); $("undo").addEventListener("click", undo); $("redo").addEventListener("click", redo);
+  $("clearLayer").addEventListener("click", () => { pushUndo(st.layer); lctx[st.layer].clearRect(0, 0, W, H); draw(); save(); });
+  $("reset").addEventListener("click", async () => { pushUndo("green"); await loadLayers(true); draw(); save(); setStatus("Reset to the game's current map."); });
+  function updateHint() { $("hint").textContent = st.tool === "poly" ? "Click corners. Click the first dot, double-click or press Enter to fill. Esc cancels." : st.tool === "brush" ? "Drag to paint. Hold Space or right-drag to pan. Scroll to zoom." : "Drag to pan. Scroll to zoom."; }
+  window.addEventListener("keydown", (e) => {
+    if (e.target && /INPUT|SELECT/.test(e.target.tagName) && e.target.type !== "range") return;
+    const k = e.key.toLowerCase();
+    if (k === " ") { st.space = true; e.preventDefault(); return; }
+    if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if ((e.ctrlKey || e.metaKey) && k === "y") { e.preventDefault(); redo(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (k === "p") press("mode", "mode", "paint"); else if (k === "e") press("mode", "mode", "erase");
+    else if (k === "b") { press("tool", "tool", "brush"); st.poly = []; updateHint(); draw(); } else if (k === "g") { press("tool", "tool", "poly"); updateHint(); draw(); } else if (k === "h") { press("tool", "tool", "pan"); updateHint(); }
+    else if (k === "d") $("dim").click(); else if (k === "f") fit(); else if (k === "z") undo(); else if (k === "y") redo();
+    else if (k === "[") { st.size = Math.max(2, st.size - 2); $("size").value = st.size; $("sizeV").textContent = st.size; draw(); }
+    else if (k === "]") { st.size = Math.min(80, st.size + 2); $("size").value = st.size; $("sizeV").textContent = st.size; draw(); }
+    else if (k === "enter") closePoly(); else if (k === "escape") { st.poly = []; draw(); } else if (k === "backspace") { st.poly.pop(); draw(); }
+  });
+  window.addEventListener("keyup", (e) => { if (e.key === " ") st.space = false; });
+
+  /* ---------- storage (per viewer convenience only) ---------- */
+  let saveT = null;
+  function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem("gp-__KEY__-green", layers.green.toDataURL()); } catch (e) {} }, 400); }
+  async function loadLayers(forceDefault) {
+    let g = SRC.green;
+    if (!forceDefault) { try { g = localStorage.getItem("gp-__KEY__-green") || g; } catch (e) {} }
+    const gi = await loadImg(g);
+    lctx.green.clearRect(0, 0, W, H); lctx.green.drawImage(gi, 0, 0, W, H);
+  }
+
+  /* ---------- export: crisp, binary, doubled to 3840 x 2160 ---------- */
+  function binary(name) {
+    const a = alphaOf(name), c = COLORS[name], out = mk(W, H), oc = out.getContext("2d"), id = oc.createImageData(W, H), d = id.data;
+    for (let i = 0; i < a.length; i++) if (a[i] >= 128) { d[i*4] = c[0]; d[i*4+1] = c[1]; d[i*4+2] = c[2]; d[i*4+3] = 255; }
+    oc.putImageData(id, 0, 0); return out;
+  }
+  function render(withPainting) {
+    const out = mk(W * 2, H * 2), o = out.getContext("2d");
+    if (withPainting) { o.imageSmoothingEnabled = true; o.drawImage(painting, 0, 0, W * 2, H * 2); o.fillStyle = "rgba(8,10,16,.55)"; o.fillRect(0, 0, W * 2, H * 2); }
+    else { o.fillStyle = "#000"; o.fillRect(0, 0, W * 2, H * 2); }
+    o.imageSmoothingEnabled = false; o.drawImage(binary("green"), 0, 0, W * 2, H * 2);
+    return out;
+  }
+  async function exportPng(withPainting, filename) {
+    setStatus("Rendering...");
+    await new Promise((r) => setTimeout(r, 30));
+    const c = render(withPainting); const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+    $("preview").classList.remove("on");
+    let dl = null; try { dl = await (window.claude && window.claude.use ? window.claude.use("downloads") : null); } catch (e) {}
+    if (dl) {
+      try { await dl.save({ filename, data: blob }); setStatus("Saved " + filename + ". Attach it to the chat."); return; }
+      catch (err) { if (err && err.code === "declined") { setStatus("Save cancelled."); return; } }
+    }
+    $("previewImg").src = URL.createObjectURL(blob); $("preview").classList.add("on"); setStatus("Saving is blocked in this view. Use the picture below.", true);
+  }
+  $("expMap").addEventListener("click", () => exportPng(true, "__FILE___ground_audited.png"));
+  $("expWalk").addEventListener("click", () => exportPng(false, "__FILE___walkable_only.png"));
+
+  /* ---------- boot ---------- */
+  new ResizeObserver(resize).observe(stage);
+  updateHint(); refreshButtons();
+  Promise.all([loadImg(SRC.img), loadLayers(false)]).then(([img]) => { painting = img; st.fitted = false; resize(); if (!st.fitted) fit(); setTimeout(resize, 300); setTimeout(resize, 1500); }).catch(() => setStatus("Could not load the painting.", true));
+})();
+</script>
+

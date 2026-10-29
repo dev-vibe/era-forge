@@ -1,0 +1,522 @@
+<title>__GAME_NAME__ Scene Editor</title>
+<style>
+  /* Layout: full-height workbench. Tool rail left, painting canvas centre, properties and export right; stacks on narrow screens. */
+  :root {
+    --bg: #eef0f4; --panel: #ffffff; --panel-2: #f4f5f8; --ink: #1c2233; --muted: #5d6679; --line: #d3d8e2;
+    --accent: #1f3fa8; --accent-ink: #ffffff; --accent-soft: #dfe6fb; --danger: #b3261e; --canvas: #20232e;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12141c; --panel: #1b1f2b; --panel-2: #232838; --ink: #e6e9f2; --muted: #98a0b5; --line: #323950;
+      --accent: #8fa8ff; --accent-ink: #0d1330; --accent-soft: #2b3560; --danger: #ff8a80; --canvas: #0c0e14; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12141c; --panel: #1b1f2b; --panel-2: #232838; --ink: #e6e9f2; --muted: #98a0b5; --line: #323950;
+    --accent: #8fa8ff; --accent-ink: #0d1330; --accent-soft: #2b3560; --danger: #ff8a80; --canvas: #0c0e14; color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 var(--sans); overflow: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .app { height: 100%; display: grid; grid-template-columns: 148px minmax(0, 1fr) 300px; grid-template-rows: auto minmax(0, 1fr); }
+  header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 14px; font-weight: 650; letter-spacing: .01em; }
+  header .sp { flex: 1; }
+  .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 5px 10px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.danger { color: var(--danger); }
+  .btn:focus-visible, .tool:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .tools { background: var(--panel); border-right: 1px solid var(--line); padding: 8px; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+  .tools h2, .side h2 { margin: 10px 0 4px; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .tools h2:first-child, .side h2:first-child { margin-top: 0; }
+  .tool { display: flex; align-items: center; gap: 7px; width: 100%; text-align: left; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: none; cursor: pointer; }
+  .tool:hover { background: var(--panel-2); }
+  .tool[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+  .tool .sw { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+  .tool kbd { margin-left: auto; font: 10.5px var(--mono); color: var(--muted); }
+  .vis { display: flex; align-items: center; gap: 6px; padding: 2px 6px; color: var(--muted); font-size: 12px; }
+  .stage { position: relative; min-width: 0; min-height: 0; background: var(--canvas); }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .hud { position: absolute; left: 10px; bottom: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px 14px; pointer-events: none; }
+  .hud span { background: rgba(10, 12, 20, .78); color: #e8ecf8; padding: 3px 8px; border-radius: 4px; font: 11.5px var(--mono); }
+  .hud .msg { white-space: normal; }
+  .empty { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); background: rgba(10, 12, 20, .82); color: #e8ecf8; padding: 6px 12px; border-radius: 6px; text-align: center; pointer-events: none; }
+  .side { background: var(--panel); border-left: 1px solid var(--line); padding: 10px 12px; overflow: auto; min-width: 0; }
+  .row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 6px 8px; align-items: center; margin: 4px 0; }
+  .row label { color: var(--muted); font-size: 12px; }
+  .row input, .row select, .row textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 4px 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; }
+  .row textarea { resize: vertical; min-height: 54px; }
+  .row .pair { display: flex; gap: 6px; min-width: 0; }
+  .num { font-family: var(--mono); }
+  .list { max-height: 210px; overflow: auto; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); }
+  .list button { display: flex; width: 100%; gap: 8px; align-items: center; padding: 3px 8px; background: none; border: 0; text-align: left; cursor: pointer; }
+  .list button:hover { background: var(--accent-soft); }
+  .list button[aria-current="true"] { background: var(--accent-soft); font-weight: 600; }
+  .list .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .list small { margin-left: auto; color: var(--muted); font-family: var(--mono); }
+  textarea.io { width: 100%; box-sizing: border-box; height: 120px; font: 11px/1.35 var(--mono); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 6px; resize: vertical; }
+  .note { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 60vh auto; }
+    .tools { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
+    .tools h2 { width: 100%; }
+    .tool { width: auto; }
+    .side { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>__GAME_NAME__ scene editor</h1>
+    <label class="btn" for="imgFile">Load painting…</label>
+    <input id="imgFile" type="file" accept="image/*" hidden>
+    <button class="btn" id="undoBtn" type="button">Undo</button>
+    <button class="btn" id="redoBtn" type="button">Redo</button>
+    <button class="btn" id="fitBtn" type="button">Fit view</button>
+    <span class="sp"></span>
+    <span class="note" id="saveNote" style="margin:0"></span>
+  </header>
+
+  <nav class="tools" aria-label="Tools" id="tools"></nav>
+
+  <main class="stage" id="stage">
+    <canvas id="cv" tabindex="0" aria-label="Scene painting with traced layers"></canvas>
+    <div class="empty" id="emptyNote">Example scene. Drop your own painting here, or use Load painting.</div>
+    <div class="hud"><span id="hudPos">x – y –</span><span id="hudZoom">100%</span><span class="msg" id="hudMsg"></span></div>
+  </main>
+
+  <aside class="side" id="side">
+    <h2>Scene</h2>
+    <div class="row"><label for="fId">Id</label><input id="fId" type="text" spellcheck="false"></div>
+    <div class="row"><label for="fName">Name</label><input id="fName" type="text"></div>
+    <div class="row"><label for="fTW">Size (tiles)</label><div class="pair"><input id="fTW" class="num" type="number" min="1" step="1"><input id="fTH" class="num" type="number" min="1" step="1" readonly title="Derived from the painting's proportions"></div></div>
+    <div class="row"><label>Painting</label><span class="num" id="fImg">–</span></div>
+    <div class="row"><label for="fGrid">Overlay</label><div class="pair"><label><input id="fGrid" type="checkbox" checked> tiles</label><label><input id="fSnap" type="checkbox"> snap 4px</label><label><input id="fFig" type="checkbox" checked> figure</label></div></div>
+
+    <h2 id="selHead">Selection</h2>
+    <div id="props"><p class="note">Nothing selected. Choose Select (V) and click a shape.</p></div>
+
+    <h2>Objects</h2>
+    <div class="list" id="objList"></div>
+
+    <h2>Export</h2>
+    <p class="note">Save the copied text as <span class="num">assets/game/&lt;id&gt;.scene.json</span> and rebuild; the game picks it up.</p>
+    <div class="acts"><button class="btn primary" id="copyBtn" type="button">Copy scene JSON</button><button class="btn" id="selBtn" type="button">Select all text</button></div>
+    <textarea class="io" id="outTxt" readonly spellcheck="false" aria-label="Scene JSON"></textarea>
+
+    <h2>Import</h2>
+    <textarea class="io" id="inTxt" spellcheck="false" placeholder="Paste a scene JSON here" aria-label="Paste scene JSON"></textarea>
+    <div class="acts"><button class="btn" id="loadBtn" type="button">Load JSON</button><button class="btn danger" id="clearBtn" type="button" title="Remove every traced shape">Clear all</button></div>
+    <p class="note" id="ioMsg"></p>
+  </aside>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), g = cv.getContext('2d');
+  const TILE = 32;                      // logical pixels per tile in the engine
+  const HERO_TILES = 1.4;               // a person is about 1.4 tiles tall
+
+  // ---- layer catalogue: key in the scene JSON, how it is drawn, how it is picked ----
+  const LAYERS = [
+    { id: 'walk',  key: 'walk',   shape: 'poly',  label: 'Walkable',   col: '#30ff70', hot: 'W', hint: 'Click points round the ground the hero may walk on. Click the first point, double-click or press Enter to close.' },
+    { id: 'block', key: 'block',  shape: 'rect',  label: 'Blocked',    col: '#ff4060', hot: 'B', hint: 'Drag a rectangle the feet cannot enter (wells, troughs, barrels).' },
+    { id: 'occ',   key: 'occ',    shape: 'poly',  label: 'Cut-out',    col: '#ff40ff', hot: 'O', hint: 'Outline something drawn over the hero when his feet are above its baseline (eaves, canopies, roofs).' },
+    { id: 'water', key: 'water',  shape: 'poly',  label: 'Water',      col: '#4090ff', hot: 'R', hint: 'Outline a water region (for the water loops later). Bridges over it are cut-outs.' },
+    { id: 'door',  key: 'doors',  shape: 'rect',  label: 'Door',       col: '#40e0ff', hot: 'D', hint: 'Drag a trigger rectangle at a doorway.' },
+    { id: 'exit',  key: 'exits',  shape: 'rect',  label: 'Exit',       col: '#ffe040', hot: 'E', hint: 'Drag a trigger rectangle along a screen edge. Give it a target scene to link areas.' },
+    { id: 'warp',  key: 'warps',  shape: 'rect',  label: 'Warp',       col: '#c080ff', hot: 'X', hint: 'Drag a trigger rectangle. Stepping into it moves the hero to its arrival point (in this scene or another), after a delay, with a sound and an animation. Use Make two-way for a return trigger.' },
+    { id: 'thing', key: 'things', shape: 'rect',  label: 'Examine',    col: '#ff9040', hot: 'T', hint: 'Drag a rectangle the hero can look at (well, notice board).' },
+    { id: 'light', key: 'lights', shape: 'point', label: 'Light',      col: '#ffd060', hot: 'L', hint: 'Click to place a dusk light (window, lantern, doorway).' },
+  ];
+  const L_BY = Object.fromEntries(LAYERS.map(l => [l.id, l]));
+  const PICK_ORDER = ['light', 'thing', 'warp', 'exit', 'door', 'occ', 'water', 'block', 'walk'];
+
+  // ---- state ----
+  let S = emptyScene();
+  let img = null, isExample = true;
+  let tool = 'select', sel = null, draft = null, drag = null, hover = null;
+  let view = { x: 0, y: 0, z: 1 };
+  let vis = Object.fromEntries(LAYERS.map(l => [l.id, true])); vis.start = true;
+  let hist = [], histAt = -1, dirty = true, panning = null, spaceDown = false;
+  const play = { on: false, x: 0, y: 0, dir: 0, mask: null, ww: 0, wh: 0, k: 1, keys: {} };
+
+  function emptyScene() { return { id: 'new_scene', name: 'New scene', img: 'new_scene', iw: 1920, ih: 1080, tiles: [60, 34], start: [960, 600, 0], walk: [], block: [], occ: [], doors: [], exits: [], warps: [], things: [], lights: [], water: [] }; }
+  const kScale = () => S.tiles[0] * TILE / S.iw;              // logical px per painting px
+  const imgTile = () => S.iw / S.tiles[0];                   // painting px per tile
+
+  // ---- example scene (clearly marked) so the editor opens in a working state ----
+  function makeExample() {
+    const c = document.createElement('canvas'); c.width = 1920; c.height = 1080; const x = c.getContext('2d');
+    const gr = x.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, '#6e8a5a'); gr.addColorStop(1, '#4d6b46'); x.fillStyle = gr; x.fillRect(0, 0, 1920, 1080);
+    x.fillStyle = '#b79e73'; x.beginPath(); x.moveTo(0, 620); x.lineTo(1920, 560); x.lineTo(1920, 760); x.lineTo(0, 820); x.fill();
+    const house = (px, py, w, h) => { x.fillStyle = '#3c3f55'; x.fillRect(px, py, w, h * 0.45); x.fillStyle = '#8a6a4a'; x.fillRect(px, py + h * 0.45, w, h * 0.55); x.fillStyle = '#2a2230'; x.fillRect(px + w * 0.42, py + h * 0.62, w * 0.16, h * 0.38); };
+    house(180, 200, 520, 340); house(1180, 160, 560, 380);
+    x.fillStyle = '#8f8f9a'; x.fillRect(880, 640, 130, 90); x.fillStyle = '#243a22'; x.beginPath(); x.arc(1560, 880, 140, 0, 7); x.fill();
+    x.fillStyle = 'rgba(255,255,255,.55)'; x.font = '28px system-ui'; x.fillText('EXAMPLE PAINTING (placeholder)', 40, 1050);
+    return c;
+  }
+  function loadExample() {
+    img = makeExample(); isExample = true;
+    S = emptyScene(); S.id = 'example_street'; S.name = 'Example street'; S.img = 'example_street'; S.tiles = [60, 34]; S.start = [620, 690, 0];
+    S.walk = [[[0, 620], [1920, 560], [1920, 760], [0, 820]], [[560, 540], [1040, 540], [1040, 620], [560, 620]]];
+    S.block = [[880, 640, 1010, 730]];
+    S.occ = [{ name: 'west house', base: 540, poly: [[180, 200], [700, 200], [700, 540], [180, 540]] }, { name: 'east house', base: 540, poly: [[1180, 160], [1740, 160], [1740, 540], [1180, 540]] }];
+    S.doors = [{ r: [400, 520, 480, 552], who: '', text: 'The west house door.' }];
+    S.exits = [{ r: [1896, 560, 1920, 760], text: 'The road continues east.', to: '', at: [] }];
+    S.things = [{ r: [860, 620, 1030, 750], who: '', text: 'A well.' }];
+    S.lights = [[440, 420, 50, '#ffb060', 0.4]]; S.water = [{ poly: [[1400, 900], [1800, 900], [1800, 1040], [1400, 1040]], kind: 'pond' }];
+    $('emptyNote').hidden = false; afterLoad(true);
+  }
+
+  // ---- history ----
+  const snap = () => JSON.stringify(S);
+  function commit() { hist = hist.slice(0, histAt + 1); hist.push(snap()); if (hist.length > 200) hist.shift(); histAt = hist.length - 1; changed(); }
+  function undo() { if (histAt > 0) { S = JSON.parse(hist[--histAt]); fixSel(); changed(); buildProps(); } }
+  function redo() { if (histAt < hist.length - 1) { S = JSON.parse(hist[++histAt]); fixSel(); changed(); buildProps(); } }
+  function fixSel() { if (sel && !getObj(sel.k, sel.i)) sel = null; }
+  let outTimer = 0;
+  function changed() { dirty = true; clearTimeout(outTimer); outTimer = setTimeout(() => { $('outTxt').value = exportText(); autosave(); }, 120); buildList(); syncFields(); }
+  function autosave() { if (isExample) return; try { localStorage.setItem('__GAME_ID__-scene-editor:' + S.id, snap()); $('saveNote').textContent = 'Autosaved in this browser'; } catch (e) { $('saveNote').textContent = ''; } }
+
+  // ---- object access ----
+  function getObj(k, i) { const a = arr(k); return a ? a[i] : undefined; }
+  function arr(k) { return S[L_BY[k].key]; }
+  function ptsOf(k, i) { const o = getObj(k, i); return k === 'walk' ? o : k === 'occ' || k === 'water' ? o.poly : null; }
+  function rectOf(k, i) { const o = getObj(k, i); return k === 'block' ? o : o.r; }
+
+  // ---- geometry ----
+  const inPoly = (p, pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+  const inRect = (p, r) => p[0] >= r[0] && p[0] <= r[2] && p[1] >= r[1] && p[1] <= r[3];
+  function segDist(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy; let t = l ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+  const hitR = () => 8 / view.z;
+  function pickAt(p) {
+    for (const id of PICK_ORDER) { if (!vis[id]) continue; const a = arr(id);
+      for (let i = a.length - 1; i >= 0; i--) {
+        const L = L_BY[id];
+        if (L.shape === 'point') { if (Math.hypot(a[i][0] - p[0], a[i][1] - p[1]) < Math.max(hitR(), 10 / view.z)) return { k: id, i }; }
+        else if (L.shape === 'rect') { if (inRect(p, rectOf(id, i))) return { k: id, i }; }
+        else if (inPoly(p, ptsOf(id, i))) return { k: id, i };
+      } }
+    return null;
+  }
+
+  // ---- view transform ----
+  const toScr = p => [(p[0] - view.x) * view.z, (p[1] - view.y) * view.z];
+  const toImg = (sx, sy) => [sx / view.z + view.x, sy / view.z + view.y];
+  function fit() { const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return; view.z = Math.min(w / S.iw, h / S.ih) * 0.96; view.x = (S.iw - w / view.z) / 2; view.y = (S.ih - h / view.z) / 2; dirty = true; }
+  function resize() { const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); dirty = true; }
+  const snapP = p => { if ($('fSnap').checked) return [Math.round(p[0] / 4) * 4, Math.round(p[1] / 4) * 4]; return [Math.round(p[0]), Math.round(p[1])]; };
+  const clampP = p => [Math.max(0, Math.min(S.iw, p[0])), Math.max(0, Math.min(S.ih, p[1]))];
+
+  // ---- drawing ----
+  function pathPoly(pts) { pts.forEach((p, i) => { const s = toScr(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); }); }
+  function draw() {
+    const d = window.devicePixelRatio || 1; g.setTransform(d, 0, 0, d, 0, 0);
+    const w = cv.clientWidth, h = cv.clientHeight; g.clearRect(0, 0, w, h); g.imageSmoothingEnabled = view.z < 1;
+    if (img) { const a = toScr([0, 0]); g.drawImage(img, a[0], a[1], S.iw * view.z, S.ih * view.z); }
+    if ($('fGrid').checked && view.z * imgTile() > 6) {
+      g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1; g.beginPath(); const t = imgTile();
+      for (let x = 0; x <= S.iw + 0.5; x += t) { const s = toScr([x, 0])[0]; g.moveTo(s, toScr([0, 0])[1]); g.lineTo(s, toScr([0, S.ih])[1]); }
+      for (let y = 0; y <= S.ih + 0.5; y += t) { const s = toScr([0, y])[1]; g.moveTo(toScr([0, 0])[0], s); g.lineTo(toScr([S.iw, 0])[0], s); }
+      g.stroke();
+    }
+    for (const L of LAYERS) { if (!vis[L.id]) continue; const a = arr(L.id);
+      a.forEach((o, i) => {
+        const isSel = sel && sel.k === L.id && sel.i === i; g.lineWidth = isSel ? 2.5 : 1.5; g.strokeStyle = L.col; g.fillStyle = L.col + (L.id === 'walk' ? '33' : L.id === 'block' ? '44' : '22');
+        if (L.shape === 'poly') { const pts = ptsOf(L.id, i); g.beginPath(); pathPoly(pts); g.closePath(); g.fill(); g.stroke();
+          if (L.id === 'occ') { const y = toScr([0, o.base])[1]; let x0 = 1e9, x1 = -1e9; pts.forEach(p => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); }); g.save(); g.strokeStyle = '#fff'; g.setLineDash([6, 4]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(toScr([x0, 0])[0], y); g.lineTo(toScr([x1, 0])[0], y); g.stroke(); g.restore(); }
+        } else if (L.shape === 'rect') { const r = rectOf(L.id, i), a0 = toScr([r[0], r[1]]), a1 = toScr([r[2], r[3]]); g.fillRect(a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); g.strokeRect(a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]);
+        } else { const s = toScr(o), rad = o[2] * view.z; g.beginPath(); g.arc(s[0], s[1], Math.max(rad, 4), 0, 7); g.fill(); g.stroke(); g.fillStyle = o[3] || '#ffb060'; g.beginPath(); g.arc(s[0], s[1], 5, 0, 7); g.fill(); g.strokeStyle = '#000'; g.lineWidth = 1; g.stroke(); }
+        if (L.shape !== 'point' && (o.name || o.kind || o.text) && (isSel || view.z > 0.45)) { const c = centroid(L.id, i), s = toScr(c); g.font = '11px system-ui'; const t = o.name || o.kind || ''; if (t) { g.fillStyle = 'rgba(10,12,20,.7)'; const tw = g.measureText(t).width; g.fillRect(s[0] - tw / 2 - 3, s[1] - 8, tw + 6, 15); g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(t, s[0], s[1] + 3); g.textAlign = 'start'; } }
+      }); }
+    // warps: a dashed line from each trigger to its arrival point, with a diamond showing where the hero lands and which way he faces
+    for (let i = 0; vis.warp && i < S.warps.length; i++) { const o = S.warps[i]; if (!o.at || o.at.length < 2 || (o.to && o.to !== S.id)) continue;
+      const isSel = sel && sel.k === 'warp' && sel.i === i, c = centroid('warp', i), s0 = toScr(c), s1 = toScr(o.at), u = Math.max(7, imgTile() * view.z * 0.35);
+      g.save(); g.strokeStyle = '#c080ff'; g.fillStyle = isSel ? '#c080ff' : '#c080ffaa'; g.lineWidth = isSel ? 2 : 1; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(s0[0], s0[1]); g.lineTo(s1[0], s1[1]); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.moveTo(s1[0], s1[1] - u); g.lineTo(s1[0] + u * 0.7, s1[1]); g.lineTo(s1[0], s1[1] + u); g.lineTo(s1[0] - u * 0.7, s1[1]); g.closePath(); g.fill(); g.strokeStyle = '#000'; g.lineWidth = 1; g.stroke();
+      const f = o.at[2]; if (f != null && f < 4) { const d = [[0, 1], [0, -1], [-1, 0], [1, 0]][f]; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(s1[0], s1[1]); g.lineTo(s1[0] + d[0] * u * 1.4, s1[1] + d[1] * u * 1.4); g.stroke(); }
+      g.restore(); }
+    // handles of the selected shape
+    if (sel) { const L = L_BY[sel.k]; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 1;
+      const hd = p => { const s = toScr(p); g.fillRect(s[0] - 4, s[1] - 4, 8, 8); g.strokeRect(s[0] - 4, s[1] - 4, 8, 8); };
+      if (L.shape === 'poly') ptsOf(sel.k, sel.i).forEach(hd); else if (L.shape === 'rect') { const r = rectOf(sel.k, sel.i); [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].forEach(hd); } }
+    // start marker
+    if (vis.start) { const s = toScr(S.start), u = Math.max(8, imgTile() * view.z * 0.6); g.strokeStyle = '#fff'; g.fillStyle = '#ff5030'; g.lineWidth = 2; g.beginPath(); g.moveTo(s[0], s[1]); g.lineTo(s[0] - u * 0.5, s[1] - u); g.lineTo(s[0] + u * 0.5, s[1] - u); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.font = '10px system-ui'; g.fillText('start', s[0] + 6, s[1] + 12); }
+    // polygon or rect being drawn
+    if (draft) { const L = L_BY[draft.k]; g.strokeStyle = L.col; g.fillStyle = L.col + '33'; g.lineWidth = 2;
+      if (draft.pts) { g.beginPath(); pathPoly(draft.pts.concat(hover ? [hover] : [])); g.stroke(); draft.pts.forEach((p, i) => { const s = toScr(p); g.fillStyle = i ? '#fff' : L.col; g.beginPath(); g.arc(s[0], s[1], i ? 3.5 : 6, 0, 7); g.fill(); g.stroke(); }); }
+      else if (draft.r) { const a0 = toScr([draft.r[0], draft.r[1]]), a1 = toScr([draft.r[2], draft.r[3]]); g.fillRect(a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); g.strokeRect(a0[0], a0[1], a1[0] - a0[0], a1[1] - a0[1]); } }
+    // scale figure (a person is 1.4 tiles tall, a door about 1.15x that)
+    const figAt = play.on ? [play.x / play.k, play.y / play.k] : (hover && $('fFig').checked && (tool === 'select' || tool === 'start') ? hover : null);
+    if (figAt && ($('fFig').checked || play.on)) { const fh = imgTile() * HERO_TILES, s = toScr(figAt), hh = fh * view.z; g.fillStyle = 'rgba(255,255,255,.85)'; g.strokeStyle = '#000'; g.lineWidth = 1.5; g.beginPath(); g.ellipse(s[0], s[1], hh * 0.22, hh * 0.08, 0, 0, 7); g.fillStyle = 'rgba(0,0,0,.35)'; g.fill(); g.fillStyle = play.on ? '#ff5030' : 'rgba(255,255,255,.8)'; g.fillRect(s[0] - hh * 0.17, s[1] - hh, hh * 0.34, hh * 0.72); g.strokeRect(s[0] - hh * 0.17, s[1] - hh, hh * 0.34, hh * 0.72); g.beginPath(); g.arc(s[0], s[1] - hh * 0.88, hh * 0.17, 0, 7); g.fill(); g.stroke(); }
+    $('hudZoom').textContent = Math.round(view.z * 100) + '%';
+  }
+  function centroid(k, i) { const L = L_BY[k]; if (L.shape === 'rect') { const r = rectOf(k, i); return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]; } const p = ptsOf(k, i); return [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length]; }
+  function loop() { if (play.on) stepPlay(); if (dirty || play.on) { dirty = false; draw(); } requestAnimationFrame(loop); }
+
+  // ---- tools rail ----
+  function buildTools() {
+    const t = $('tools'); t.textContent = '';
+    const add = (id, label, col, hot) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'tool'; b.dataset.tool = id; b.setAttribute('aria-pressed', 'false');
+      if (col) { const s = document.createElement('span'); s.className = 'sw'; s.style.background = col; b.appendChild(s); }
+      b.appendChild(document.createTextNode(label)); const k = document.createElement('kbd'); k.textContent = hot; b.appendChild(k); b.addEventListener('click', () => setTool(id)); t.appendChild(b); };
+    const h = x => { const e = document.createElement('h2'); e.textContent = x; t.appendChild(e); };
+    h('Tools'); add('select', 'Select', null, 'V'); LAYERS.forEach(l => add(l.id, l.label, l.col, l.hot)); add('start', 'Start point', '#ff5030', 'S'); add('play', 'Walk test', '#ffffff', 'P');
+    h('Show layers');
+    [...LAYERS, { id: 'start', label: 'Start point' }].forEach(l => { const d = document.createElement('label'); d.className = 'vis'; const c = document.createElement('input'); c.type = 'checkbox'; c.checked = true; c.addEventListener('change', () => { vis[l.id] = c.checked; dirty = true; }); d.appendChild(c); d.appendChild(document.createTextNode(l.label)); t.appendChild(d); });
+  }
+  function setTool(id) {
+    if (draft) draft = null;
+    if (id === 'play') { togglePlay(); return; }
+    if (play.on) togglePlay();
+    tool = id; document.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === id)));
+    const L = L_BY[id]; hud(id === 'select' ? 'Click a shape to edit. Drag a square handle to reshape, drag the shape to move it, double-click an edge to add a point, right-click a point to remove it, Delete removes the shape.' : id === 'start' ? 'Click to place the hero start point.' : L.hint); dirty = true;
+  }
+  const hud = m => { $('hudMsg').textContent = m || ''; };
+
+  // ---- pointer handling ----
+  const evP = e => { const r = cv.getBoundingClientRect(); return toImg(e.clientX - r.left, e.clientY - r.top); };
+  cv.addEventListener('contextmenu', e => { e.preventDefault(); if (tool !== 'select' || !sel) return; const p = evP(e), L = L_BY[sel.k]; if (L.shape !== 'poly') return; const pts = ptsOf(sel.k, sel.i), j = nearVertex(pts, p); if (j >= 0 && pts.length > 3) { pts.splice(j, 1); commit(); } });
+  const nearVertex = (pts, p) => { let b = -1, bd = hitR(); pts.forEach((q, j) => { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; b = j; } }); return b; };
+  cv.addEventListener('pointerdown', e => {
+    cv.focus(); const raw = evP(e);
+    if (e.button === 1 || (e.button === 0 && spaceDown)) { panning = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y }; cv.setPointerCapture(e.pointerId); return; }
+    if (e.button !== 0) return;
+    if (pickArrive) { const q = snapP(clampP(raw)), w = getObj(pickArrive.k, pickArrive.i); pickArrive = null; if (w) { w.at = [q[0], q[1], w.at && w.at[2] != null ? w.at[2] : 0]; commit(); } hud(''); buildProps(); dirty = true; return; }
+    if (play.on) { play.x = raw[0] * play.k; play.y = raw[1] * play.k; return; }
+    const p = snapP(clampP(raw));
+    if (tool === 'select') {
+      if (sel) { const L = L_BY[sel.k];
+        if (L.shape === 'poly') { const j = nearVertex(ptsOf(sel.k, sel.i), raw); if (j >= 0) { drag = { type: 'vertex', j }; cv.setPointerCapture(e.pointerId); return; } }
+        if (L.shape === 'rect') { const r = rectOf(sel.k, sel.i), cs = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]]; const j = cs.findIndex(c => Math.hypot(c[0] - raw[0], c[1] - raw[1]) < hitR()); if (j >= 0) { drag = { type: 'corner', j }; cv.setPointerCapture(e.pointerId); return; } } }
+      const hit = pickAt(raw); sel = hit; buildProps(); dirty = true;
+      if (hit) { drag = { type: 'move', from: raw, orig: JSON.stringify(getObj(hit.k, hit.i)), moved: false }; cv.setPointerCapture(e.pointerId); }
+      return;
+    }
+    if (tool === 'start') { S.start = [p[0], p[1], S.start[2] || 0]; commit(); buildProps(); return; }
+    const L = L_BY[tool];
+    if (L.shape === 'point') { arr(tool).push([p[0], p[1], 50, '#ffb060', 0.3]); sel = { k: tool, i: arr(tool).length - 1 }; commit(); buildProps(); return; }
+    if (L.shape === 'rect') { draft = { k: tool, r: [p[0], p[1], p[0], p[1]], a: p }; cv.setPointerCapture(e.pointerId); return; }
+    // polygon
+    if (!draft) draft = { k: tool, pts: [p] };
+    else { const f = toScr(draft.pts[0]), s = toScr(raw); if (draft.pts.length >= 3 && Math.hypot(f[0] - s[0], f[1] - s[1]) < 10) closeDraft(); else draft.pts.push(p); }
+    dirty = true;
+  });
+  cv.addEventListener('pointermove', e => {
+    const raw = evP(e); hover = snapP(clampP(raw)); $('hudPos').textContent = 'x ' + hover[0] + '  y ' + hover[1] + '  ·  tile ' + (hover[0] / imgTile()).toFixed(1) + ', ' + (hover[1] / imgTile()).toFixed(1);
+    if (panning) { view.x = panning.vx - (e.clientX - panning.sx) / view.z; view.y = panning.vy - (e.clientY - panning.sy) / view.z; dirty = true; return; }
+    if (drag && sel) { const L = L_BY[sel.k], p = snapP(clampP(raw));
+      if (drag.type === 'vertex') ptsOf(sel.k, sel.i)[drag.j] = p;
+      else if (drag.type === 'corner') { const r = rectOf(sel.k, sel.i); if (drag.j === 0 || drag.j === 3) r[0] = p[0]; else r[2] = p[0]; if (drag.j < 2) r[1] = p[1]; else r[3] = p[1]; }
+      else if (drag.type === 'move') { let dx = raw[0] - drag.from[0], dy = raw[1] - drag.from[1]; if ($('fSnap').checked) { dx = Math.round(dx / 4) * 4; dy = Math.round(dy / 4) * 4; } else { dx = Math.round(dx); dy = Math.round(dy); } if (dx || dy) drag.moved = true; const o = JSON.parse(drag.orig), cur = getObj(sel.k, sel.i); moveBy(L, cur, o, dx, dy); }
+      dirty = true; return; }
+    if (draft && draft.r) { draft.r = [Math.min(draft.a[0], hover[0]), Math.min(draft.a[1], hover[1]), Math.max(draft.a[0], hover[0]), Math.max(draft.a[1], hover[1])]; }
+    dirty = true;
+  });
+  function moveBy(L, cur, o, dx, dy) {
+    if (L.shape === 'point') { cur[0] = o[0] + dx; cur[1] = o[1] + dy; }
+    else if (L.shape === 'rect') { const r = L.id === 'block' ? cur : cur.r, q = L.id === 'block' ? o : o.r; r[0] = q[0] + dx; r[1] = q[1] + dy; r[2] = q[2] + dx; r[3] = q[3] + dy; }
+    else { const pts = L.id === 'walk' ? cur : cur.poly, q = L.id === 'walk' ? o : o.poly; q.forEach((c, j) => { pts[j] = [c[0] + dx, c[1] + dy]; }); if (L.id === 'occ') cur.base = o.base + dy; }
+  }
+  cv.addEventListener('pointerup', e => {
+    if (panning) { panning = null; return; }
+    if (drag) { const moved = drag.type !== 'move' || drag.moved; drag = null; if (moved) { commit(); buildProps(); } return; }
+    if (draft && draft.r) { const r = draft.r, k = draft.k; draft = null; if (r[2] - r[0] >= 4 && r[3] - r[1] >= 4) { const o = k === 'block' ? r : k === 'door' ? { r, who: '', text: '' } : k === 'exit' ? { r, text: '', to: '', at: [] } : k === 'warp' ? newWarp(r) : { r, who: '', text: '' }; arr(k).push(o); sel = { k, i: arr(k).length - 1 }; commit(); buildProps(); } dirty = true; }
+  });
+  cv.addEventListener('dblclick', e => {
+    const raw = evP(e);
+    if (draft && draft.pts) { draft.pts.pop(); if (draft.pts.length >= 3) closeDraft(); return; }
+    if (tool === 'select' && sel && L_BY[sel.k].shape === 'poly') { const pts = ptsOf(sel.k, sel.i); let b = -1, bd = hitR() * 1.4; for (let i = 0; i < pts.length; i++) { const d = segDist(raw, pts[i], pts[(i + 1) % pts.length]); if (d < bd) { bd = d; b = i; } } if (b >= 0) { pts.splice(b + 1, 0, snapP(raw)); commit(); } }
+  });
+  function closeDraft() {
+    if (!draft || !draft.pts || draft.pts.length < 3) return; const k = draft.k, pts = draft.pts; draft = null;
+    if (k === 'walk') S.walk.push(pts); else if (k === 'occ') S.occ.push({ name: 'cut-out ' + (S.occ.length + 1), base: Math.max(...pts.map(p => p[1])), poly: pts }); else S.water.push({ poly: pts, kind: 'river' });
+    sel = { k, i: arr(k).length - 1 }; commit(); buildProps();
+  }
+  cv.addEventListener('wheel', e => { e.preventDefault(); const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top, b = toImg(sx, sy); view.z = Math.max(0.05, Math.min(16, view.z * Math.exp(-e.deltaY * 0.0015))); view.x = b[0] - sx / view.z; view.y = b[1] - sy / view.z; dirty = true; }, { passive: false });
+  window.addEventListener('keydown', e => {
+    const tg = e.target, typing = tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT');
+    if (typing) return;
+    if (e.code === 'Space') { spaceDown = true; e.preventDefault(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') { e.preventDefault(); redo(); return; }
+    if (play.on) { const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd' }[e.code]; if (m) { play.keys[m] = true; e.preventDefault(); } if (e.code === 'ShiftLeft') play.keys.run = true; if (e.code === 'Escape' || e.code === 'KeyP') togglePlay(); return; }
+    if (e.code === 'Enter') { closeDraft(); return; }
+    if (e.code === 'Escape') { draft = null; sel = null; buildProps(); dirty = true; return; }
+    if (e.code === 'Backspace' && draft && draft.pts) { draft.pts.pop(); if (!draft.pts.length) draft = null; dirty = true; e.preventDefault(); return; }
+    if ((e.code === 'Delete' || e.code === 'Backspace') && sel) { arr(sel.k).splice(sel.i, 1); sel = null; commit(); buildProps(); return; }
+    const hot = { KeyV: 'select', KeyW: 'walk', KeyB: 'block', KeyO: 'occ', KeyR: 'water', KeyD: 'door', KeyE: 'exit', KeyX: 'warp', KeyT: 'thing', KeyL: 'light', KeyS: 'start', KeyP: 'play' }[e.code]; if (hot) setTool(hot);
+    if (e.code === 'KeyF') { fit(); }
+  });
+  window.addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd' }[e.code]; if (m) play.keys[m] = false; if (e.code === 'ShiftLeft') play.keys.run = false; });
+
+  // ---- walk test (same foot probes and sliding idea as the game) ----
+  function buildMask() {
+    const k = kScale(), ww = Math.round(S.iw * k), wh = Math.round(S.ih * k), c = document.createElement('canvas'); c.width = ww; c.height = wh; const x = c.getContext('2d');
+    x.fillStyle = '#fff'; S.walk.forEach(poly => { x.beginPath(); poly.forEach((p, i) => i ? x.lineTo(p[0] * k, p[1] * k) : x.moveTo(p[0] * k, p[1] * k)); x.closePath(); x.fill(); });
+    x.fillStyle = '#000'; S.block.forEach(r => x.fillRect(r[0] * k, r[1] * k, (r[2] - r[0]) * k, (r[3] - r[1]) * k));
+    const d = x.getImageData(0, 0, ww, wh).data, m = new Uint8Array(ww * wh); for (let i = 0; i < m.length; i++) m[i] = d[i * 4] > 127 ? 1 : 0; Object.assign(play, { mask: m, ww, wh, k });
+  }
+  const pw = (x, y) => { x = Math.round(x); y = Math.round(y); return x >= 0 && y >= 0 && x < play.ww && y < play.wh && play.mask[y * play.ww + x] === 1; };
+  const pf = (x, y) => pw(x - 4, y) && pw(x + 4, y) && pw(x, y - 2) && pw(x, y + 1);
+  function togglePlay() {
+    play.on = !play.on; document.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === (play.on ? 'play' : tool))));
+    if (play.on) { draft = null; buildMask(); play.x = S.start[0] * play.k; play.y = S.start[1] * play.k; if (!pf(play.x, play.y)) hud('The start point is not on walkable ground. Click the painting to drop the hero somewhere else.'); else hud('Walk test: arrow keys or WASD, Shift to run, click to drop the hero, Esc to stop.'); }
+    else hud('');
+  }
+  function stepPlay() {
+    let dx = (play.keys.r ? 1 : 0) - (play.keys.l ? 1 : 0), dy = (play.keys.d ? 1 : 0) - (play.keys.u ? 1 : 0);
+    if (dx || dy) { const sp = 1.35 * (play.keys.run ? 1.8 : 1) / (dx && dy ? Math.SQRT2 : 1), go = (x, y) => pf(x, y) ? (play.x = x, play.y = y, true) : false;
+      const nudge = fn => { for (let d = 0.5; d <= sp * 2.2; d += 0.5) if (fn(d) || fn(-d)) return true; return false; };
+      if (dx) { const nx = play.x + dx * sp; if (!go(nx, play.y) && !dy) nudge(d => go(nx, play.y + d)); }
+      if (dy) { const ny = play.y + dy * sp; if (!go(play.x, ny) && !dx) nudge(d => go(play.x + d, ny)); }
+      dirty = true;
+    }
+    const pt = [play.x / play.k, play.y / play.k]; let msg = '';
+    for (const id of ['door', 'exit', 'thing']) arr(id).forEach(o => { if (inRect(pt, o.r)) msg = L_BY[id].label + ': ' + (o.text || '(no text yet)') + (o.to ? '  → ' + o.to : ''); });
+    let inW = null; S.warps.forEach(o => { if (inRect(pt, o.r)) inW = o; });
+    if (inW && inW !== play.lastW && !play.warpT) {
+      play.lastW = inW; const w = inW;
+      if (w.at && w.at.length >= 2 && (!w.to || w.to === S.id)) { hud('Warp “' + (w.name || 'unnamed') + '” in ' + (w.delay || 0) + ' s · ' + w.sfx + ' · ' + w.anim); play.warpT = setTimeout(() => { play.warpT = 0; if (!play.on) return; play.x = w.at[0] * play.k; play.y = w.at[1] * play.k; play.lastW = S.warps.find(q => inRect([w.at[0], w.at[1]], q.r)) || null; dirty = true; }, (w.delay || 0) * 1000 + 150); }
+      else hud('Warp “' + (w.name || 'unnamed') + '” → ' + (w.to || 'no destination') + (w.at && w.at.length >= 2 ? '' : ' (no arrival point yet)'));
+    } else if (!inW) play.lastW = null;
+    if (msg !== play.msg) { play.msg = msg; if (msg) hud(msg); }
+  }
+
+  // ---- properties panel ----
+  function row(label, el) { const r = document.createElement('div'); r.className = 'row'; const l = document.createElement('label'); l.textContent = label; if (el.id) l.htmlFor = el.id; r.appendChild(l); r.appendChild(el); return r; }
+  function inp(id, val, type, on) { const i = document.createElement('input'); i.id = id; i.type = type || 'text'; i.value = val == null ? '' : val; if (type === 'number') i.className = 'num'; i.addEventListener('change', () => on(i.value)); return i; }
+  function area(id, val, on) { const t = document.createElement('textarea'); t.id = id; t.value = val || ''; t.addEventListener('change', () => on(t.value)); return t; }
+
+  // ---- warps ----
+  const WARP_ANIMS = [['fade', 'Fade to black'], ['white', 'Flash to white'], ['iris', 'Iris close on hero'], ['wipe', 'Wipe across'], ['cut', 'Instant cut']];
+  const WARP_SFX = [['none', 'No sound'], ['door', 'Door'], ['stairs', 'Footsteps on stairs'], ['warp', 'Rising chime'], ['echo', 'Cave echo'], ['step', 'Single step']];
+  const FACINGS = [['0', 'down'], ['1', 'up'], ['2', 'left'], ['3', 'right'], ['4', 'keep current facing']];
+  function newWarp(r) { return { r, name: '', to: '', at: [], delay: 0, sfx: 'door', anim: 'fade', time: 0.4, pair: '' }; }
+  let pickArrive = null;
+  const partnerOf = o => o.pair ? S.warps.find(w => w !== o && w.pair === o.pair) : null;
+  function syncPartner(o) { const p = partnerOf(o); if (p) { p.delay = o.delay; p.sfx = o.sfx; p.anim = o.anim; p.time = o.time; } }
+  function makeTwoWay(o) {
+    if (partnerOf(o)) return;
+    const w = o.r[2] - o.r[0], h = o.r[3] - o.r[1], at = o.at && o.at.length >= 2 ? o.at : null; if (!at) return;
+    const id = 'w' + Date.now().toString(36); o.pair = id;
+    const back = [Math.round((o.r[0] + o.r[2]) / 2), Math.round(o.r[3] + Math.max(24, imgTile() * 0.8)), 0];  // just in front of this trigger
+    const p = newWarp([Math.round(at[0] - w / 2), Math.round(at[1] - h / 2), Math.round(at[0] + w / 2), Math.round(at[1] + h / 2)]);
+    Object.assign(p, { name: (o.name ? o.name + ' (back)' : ''), to: o.to ? S.id : '', at: back, delay: o.delay, sfx: o.sfx, anim: o.anim, time: o.time, pair: id });
+    S.warps.push(p);
+  }
+  function selectEl(id, opts, val, on) { const s = document.createElement('select'); s.id = id; opts.forEach(([v, t]) => { const op = document.createElement('option'); op.value = v; op.textContent = t; s.appendChild(op); }); s.value = String(val); s.addEventListener('change', () => on(s.value)); return s; }
+  function warpProps(o, add, cm) {
+    add(row('Name', inp('pWName', o.name, 'text', cm(v => o.name = v))));
+    add(row('Go to scene', inp('pWTo', o.to, 'text', cm(v => { o.to = v.trim(); if (o.to === S.id) o.to = ''; }))));
+    const at = o.at && o.at.length >= 2 ? o.at : [0, 0, 0];
+    const pr = document.createElement('div'); pr.className = 'pair';
+    pr.appendChild(inp('pWX', o.at && o.at.length >= 2 ? at[0] : '', 'number', cm(v => { o.at = [Math.round(+v) || 0, (o.at && o.at[1]) || 0, (o.at && o.at[2] != null) ? o.at[2] : 0]; })));
+    pr.appendChild(inp('pWY', o.at && o.at.length >= 2 ? at[1] : '', 'number', cm(v => { o.at = [(o.at && o.at[0]) || 0, Math.round(+v) || 0, (o.at && o.at[2] != null) ? o.at[2] : 0]; })));
+    add(row('Arrive at x, y', pr));
+    const a = document.createElement('div'); a.className = 'acts'; const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'btn'; pb.id = 'pWPick'; pb.textContent = pickArrive ? 'Click the painting…' : 'Pick arrival on painting'; 
+    pb.addEventListener('click', () => { if (o.to && o.to !== S.id) { hud('Arrival in another scene: type its x, y (that scene’s painting pixels).'); return; } pickArrive = { k: 'warp', i: sel.i }; hud('Click the painting where the hero should arrive (inside this scene).'); buildProps(); }); a.appendChild(pb); add(a);
+    add(row('Arrive facing', selectEl('pWDir', FACINGS, at[2] == null ? 0 : at[2], cm(v => { o.at = [(o.at && o.at[0]) || 0, (o.at && o.at[1]) || 0, +v]; }))));
+    add(row('Delay (s)', inp('pWDelay', o.delay, 'number', cm(v => { o.delay = Math.max(0, Math.min(5, +v || 0)); syncPartner(o); }))));
+    add(row('Sound', selectEl('pWSfx', WARP_SFX, o.sfx, cm(v => { o.sfx = v; syncPartner(o); }))));
+    add(row('Animation', selectEl('pWAnim', WARP_ANIMS, o.anim, cm(v => { o.anim = v; syncPartner(o); }))));
+    add(row('Anim time (s)', inp('pWTime', o.time, 'number', cm(v => { o.time = Math.max(0, Math.min(3, +v || 0)); syncPartner(o); }))));
+    const p = partnerOf(o), b2 = document.createElement('div'); b2.className = 'acts';
+    const tb = document.createElement('button'); tb.type = 'button'; tb.className = 'btn'; tb.id = 'pWTwo';
+    if (p) { tb.textContent = 'Select return trigger'; tb.addEventListener('click', () => { sel = { k: 'warp', i: S.warps.indexOf(p) }; buildProps(); buildList(); dirty = true; }); }
+    else { tb.textContent = 'Make two-way'; tb.addEventListener('click', () => { if (o.to && o.to !== S.id) { hud('Two-way works inside one scene. For another scene, add a warp back there.'); return; } if (!(o.at && o.at.length >= 2)) { hud('Set the arrival point first (type x, y or Pick arrival on painting).'); return; } makeTwoWay(o); commit(); buildProps(); }); }
+    b2.appendChild(tb); add(b2);
+    const n = document.createElement('p'); n.className = 'note';
+    n.textContent = p ? 'Two-way: delay, sound and animation stay the same on both ends. The return trigger sits at the arrival point and sends the hero back in front of this one.' : (o.to && o.to !== S.id ? 'To go both ways between scenes, add a warp back in the other scene. Arrival x, y is in that scene’s painting pixels.' : 'Set the arrival point first, then Make two-way adds the trigger back. Arriving inside a trigger does not fire it; the hero must step out and in again.');
+    add(n);
+  }
+  function buildProps() {
+    const box = $('props'); box.textContent = ''; $('selHead').textContent = sel ? 'Selection · ' + L_BY[sel.k].label : 'Selection';
+    const add = el => box.appendChild(el);
+    if (!sel) {
+      const p = document.createElement('p'); p.className = 'note'; p.textContent = 'Nothing selected. Choose Select (V) and click a shape.'; add(p);
+      const d = document.createElement('div'); d.className = 'row'; const l = document.createElement('label'); l.textContent = 'Hero start'; d.appendChild(l);
+      const sel2 = document.createElement('select'); sel2.id = 'pStartDir'; ['down', 'up', 'left', 'right'].forEach((n, i) => { const o = document.createElement('option'); o.value = i; o.textContent = 'faces ' + n; sel2.appendChild(o); }); sel2.value = S.start[2] || 0; sel2.addEventListener('change', () => { S.start[2] = +sel2.value; commit(); }); d.appendChild(sel2); add(d); return; }
+    const o = getObj(sel.k, sel.i), k = sel.k, cm = (fn) => v => { fn(v); commit(); };
+    if (k === 'occ') { add(row('Name', inp('pName', o.name, 'text', cm(v => o.name = v)))); const b = inp('pBase', o.base, 'number', cm(v => o.base = +v)); add(row('Baseline y', b)); const a = document.createElement('div'); a.className = 'acts'; const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn'; btn.textContent = 'Baseline = lowest point'; btn.addEventListener('click', () => { o.base = Math.max(...o.poly.map(p => p[1])); commit(); buildProps(); }); a.appendChild(btn); add(a); const n = document.createElement('p'); n.className = 'note'; n.textContent = 'The shape is drawn over the hero while his feet are above the baseline (higher on the screen).'; add(n); }
+    if (k === 'water') { const s = document.createElement('select'); s.id = 'pKind'; ['river', 'rapids', 'waterfall', 'pond', 'paddy', 'sea', 'moat', 'well'].forEach(n => { const op = document.createElement('option'); op.value = n; op.textContent = n; s.appendChild(op); }); s.value = o.kind; s.addEventListener('change', () => { o.kind = s.value; commit(); }); add(row('Kind', s)); }
+    if (k === 'door' || k === 'exit' || k === 'thing') { add(row('Speaker', inp('pWho', o.who, 'text', cm(v => o.who = v)))); add(row('Text', area('pText', o.text, cm(v => o.text = v)))); }
+    if (k === 'exit') { add(row('Go to scene', inp('pTo', o.to, 'text', cm(v => o.to = v.trim())))); add(row('Arrive at', inp('pAt', (o.at || []).join(', '), 'text', cm(v => { const n = v.split(/[ ,]+/).map(Number).filter(x => !isNaN(x)); o.at = n.length >= 2 ? n.slice(0, 3) : []; })))); const n = document.createElement('p'); n.className = 'note'; n.textContent = 'Leave the scene blank to show the text instead. Arrive at is x, y, direction in the other painting’s pixels.'; add(n); }
+    if (k === 'warp') warpProps(o, add, cm);
+    if (k === 'light') { add(row('Radius', inp('pLr', o[2], 'number', cm(v => o[2] = Math.max(5, +v))))); const c = inp('pLc', o[3], 'color', cm(v => o[3] = v)); add(row('Colour', c)); add(row('Flicker', inp('pLf', o[4], 'number', cm(v => o[4] = Math.max(0, Math.min(1, +v)))))); }
+    if (L_BY[k].shape === 'poly') { const n = document.createElement('p'); n.className = 'note'; n.textContent = o.poly || o.length ? (ptsOf(k, sel.i).length + ' points') : ''; add(n); }
+    const a = document.createElement('div'); a.className = 'acts'; const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger'; del.textContent = 'Delete shape'; del.addEventListener('click', () => { arr(sel.k).splice(sel.i, 1); sel = null; commit(); buildProps(); }); a.appendChild(del); add(a);
+  }
+  function buildList() {
+    const box = $('objList'); box.textContent = ''; let any = false;
+    for (const L of LAYERS) arr(L.id).forEach((o, i) => { any = true; const b = document.createElement('button'); b.type = 'button'; if (sel && sel.k === L.id && sel.i === i) b.setAttribute('aria-current', 'true'); const s = document.createElement('span'); s.className = 'sw'; s.style.background = L.col; b.appendChild(s);
+      const t = document.createElement('span'); t.textContent = L.label + ' ' + (o.name || o.kind || (o.text ? '“' + o.text.slice(0, 18) + '”' : '#' + (i + 1))); b.appendChild(t); b.addEventListener('click', () => { setTool('select'); sel = { k: L.id, i }; buildProps(); buildList(); dirty = true; }); box.appendChild(b); });
+    if (!any) { const p = document.createElement('p'); p.className = 'note'; p.style.padding = '6px 8px'; p.textContent = 'No shapes yet.'; box.appendChild(p); }
+  }
+  function syncFields() { $('fId').value = S.id; $('fName').value = S.name; $('fTW').value = S.tiles[0]; $('fTH').value = S.tiles[1]; $('fImg').textContent = S.iw + ' × ' + S.ih + ' px'; }
+  $('fId').addEventListener('change', e => { S.id = e.target.value.trim().replace(/[^a-z0-9_]/gi, '_').toLowerCase() || 'scene'; S.img = S.id; commit(); });
+  $('fName').addEventListener('change', e => { S.name = e.target.value; commit(); });
+  $('fTW').addEventListener('change', e => { const w = Math.max(1, Math.round(+e.target.value) || S.tiles[0]); S.tiles = [w, Math.round(w * S.ih / S.iw * 10) / 10]; commit(); });
+  ['fGrid', 'fFig', 'fSnap'].forEach(id => $(id).addEventListener('change', () => { dirty = true; }));
+
+  // ---- export / import ----
+  const line = v => JSON.stringify(v);
+  function exportText() {
+    const o = S, rows = [];
+    rows.push(' "id": ' + line(o.id)); rows.push(' "name": ' + line(o.name)); rows.push(' "img": ' + line(o.img)); rows.push(' "iw": ' + o.iw + ', "ih": ' + o.ih);
+    rows.push(' "tiles": ' + line(o.tiles)); rows.push(' "start": ' + line(o.start));
+    const list = (key, items) => rows.push(' ' + line(key) + ': [' + (items.length ? '\n  ' + items.map(line).join(',\n  ') + '\n ' : '') + ']');
+    list('walk', o.walk); list('block', o.block); list('occ', o.occ); list('water', o.water); list('doors', o.doors); list('exits', o.exits); list('warps', o.warps); list('things', o.things); list('lights', o.lights);
+    return '{\n' + rows.join(',\n') + '\n}';
+  }
+  function parseScene(txt) {
+    let v; try { v = JSON.parse(txt); } catch (e) { const m = txt.replace(/^\s*(?:[\w.$]+\s*=\s*)?/, '').replace(/;\s*$/, ''); v = (0, eval)('(' + m + ')'); }
+    const d = emptyScene(); const s = Object.assign(d, v);
+    ['walk', 'block', 'occ', 'doors', 'exits', 'warps', 'things', 'lights', 'water'].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+    s.warps.forEach(x => Object.assign(x, Object.assign(newWarp(x.r || [0, 0, 32, 32]), x)));
+    s.doors.forEach(x => { x.who = x.who || ''; x.text = x.text || ''; }); s.exits.forEach(x => { x.text = x.text || ''; x.to = x.to || ''; x.at = x.at || []; }); s.things.forEach(x => { x.who = x.who || ''; x.text = x.text || ''; });
+    if (!Array.isArray(s.start)) s.start = [s.iw / 2, s.ih / 2, 0]; if (!Array.isArray(s.tiles)) s.tiles = [Math.round(s.iw / 32), Math.round(s.ih / 32)];
+    return s;
+  }
+  $('loadBtn').addEventListener('click', () => { try { const s = parseScene($('inTxt').value); const keepImg = img && !isExample && img.width === s.iw; S = s; if (!keepImg) { /* painting size comes from the JSON until an image is loaded */ if (isExample) { img = null; } } isExample = false; $('emptyNote').hidden = !!img; sel = null; draft = null; afterLoad(false); $('ioMsg').textContent = 'Loaded “' + S.name + '”. ' + (img ? '' : 'Now load its painting.'); } catch (e) { $('ioMsg').textContent = 'Could not read that text as a scene: ' + e.message; } });
+  $('clearBtn').addEventListener('click', () => { if ($('clearBtn').dataset.armed) { ['walk', 'block', 'occ', 'doors', 'exits', 'warps', 'things', 'lights', 'water'].forEach(k => S[k] = []); sel = null; delete $('clearBtn').dataset.armed; $('clearBtn').textContent = 'Clear all'; commit(); buildProps(); } else { $('clearBtn').dataset.armed = '1'; $('clearBtn').textContent = 'Click again to clear'; setTimeout(() => { delete $('clearBtn').dataset.armed; $('clearBtn').textContent = 'Clear all'; }, 2500); } });
+  $('copyBtn').addEventListener('click', () => { const t = exportText(), b = $('copyBtn'); const done = ok => { b.textContent = ok ? 'Copied' : 'Select and copy below'; if (!ok) { $('outTxt').select(); } setTimeout(() => b.textContent = 'Copy scene JSON', 1800); }; try { navigator.clipboard.writeText(t).then(() => done(true), () => done(false)); } catch (e) { done(false); } });
+  $('selBtn').addEventListener('click', () => { $('outTxt').focus(); $('outTxt').select(); });
+  $('undoBtn').addEventListener('click', undo); $('redoBtn').addEventListener('click', redo); $('fitBtn').addEventListener('click', fit);
+
+  // ---- painting input: file picker, drop, paste ----
+  function setImage(file) {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const wasExample = isExample; img = im; isExample = false; $('emptyNote').hidden = true;
+      if (wasExample) { const id = (file.name || 'scene').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_]/gi, '_').toLowerCase(); S = emptyScene(); S.id = id; S.img = id; S.name = id; }
+      S.iw = im.naturalWidth; S.ih = im.naturalHeight; const w = S.tiles[0]; S.tiles = [w, Math.round(w * S.ih / S.iw * 10) / 10]; if (wasExample) { S.start = [S.iw / 2, S.ih / 2, 0]; }
+      if (!wasExample && S.tiles[0] < 1) S.tiles = [Math.round(S.iw / 64), Math.round(S.ih / 64)];
+      sel = null; draft = null; hist = []; histAt = -1; commit(); fit(); buildProps(); hud(wasExample ? 'Painting loaded. Set the width in tiles (the game shows 20 tiles per screen), then trace.' : '');
+    };
+    im.src = url;
+  }
+  $('imgFile').addEventListener('change', e => { if (e.target.files[0]) setImage(e.target.files[0]); });
+  const stage = $('stage');
+  stage.addEventListener('dragover', e => e.preventDefault());
+  stage.addEventListener('drop', e => { e.preventDefault(); const f = [...e.dataTransfer.files].find(x => x.type.startsWith('image/')); if (f) setImage(f); });
+  window.addEventListener('paste', e => { const tg = e.target; if (tg && (tg.tagName === 'TEXTAREA' || tg.tagName === 'INPUT')) return; const it = [...(e.clipboardData ? e.clipboardData.items : [])].find(x => x.type.startsWith('image/')); if (it) setImage(it.getAsFile()); });
+
+  function afterLoad(first) { hist = []; histAt = -1; sel = null; hist.push(snap()); histAt = 0; if (S.tiles[1] == null) S.tiles[1] = Math.round(S.tiles[0] * S.ih / S.iw * 10) / 10; changed(); buildProps(); fit(); if (first) setTool('select'); }
+
+  // ---- boot ----
+  new ResizeObserver(() => { resize(); if (!boot.done) { boot.done = true; fit(); } }).observe(cv);
+  const boot = { done: false };
+  buildTools(); loadExample(); setTool('select'); requestAnimationFrame(loop);
+  window.__editor = { get S() { return S; }, exportText, parseScene, setTool, get play() { return play; }, commit, fit };
+})();
+</script>

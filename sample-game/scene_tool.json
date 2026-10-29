@@ -1,0 +1,9 @@
+{
+ "_about": "Per-scene settings for tools/scene_tool.py --game cincinnatus (job fw-F5a, 29 Oct 2026; replaces games/cincinnatus/tools/trace_ground.py). trace: src = the image model's ground layer (white = walkable, an edit of the scene's painting on the same canvas, art-prompts.md), open = opening radius in px (default 5), origin = where the original is kept (written into the scene's _note). The other steps (mask, painter, fg, link) take their settings from the same file as Ronin's; see tools/scene_tool.json.",
+ "area_farm": {
+  "trace": { "src": "assets/raw/ground_area_farm.png", "open": 5, "origin": "ronin-assets outputs/cincinnatus/" }
+ },
+ "room_hut": {
+  "trace": { "src": "assets/raw/ground_room_hut.png", "open": 5, "origin": "ronin-assets outputs/cincinnatus/" }
+ }
+}

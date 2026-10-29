@@ -1,0 +1,8 @@
+{
+  "_about": "The plain test theme (job fw-F4, 29 Oct 2026). It is not a look for any game: flat grey panels, a blue square accent, system fonts, no effects but a flat shape per battle effect. tests/theme_test.py builds the game with it (pub_ch1/theme_plain.html) and renders every screen, which proves the engine and the game's content draw only through the theme layer. It also shows the smallest complete theme: every token here and every widget in plain.js (THEME_WIDGETS in src/01a_game.js). art/mark.png exercises theme art (themeArt('mark')).",
+  "id": "plain",
+  "name": "Plain (test theme)",
+  "colors": { "ink": "#1b1f24", "soft": "#4a5560", "faint": "#5d6873", "seal": "#1f6feb", "sealHi": "#58a6ff", "sealDk": "#0b3d91", "ochre": "#7a5c00", "indigo": "#2f4f8f", "plum": "#6b3fa0", "cream": "#ffffff", "paper": "#e6e9ed", "outline": "#000000" },
+  "fonts": { "body": "Arial, Helvetica, sans-serif", "head": "Verdana, Arial, sans-serif", "links": [], "preload": [] },
+  "sizes": { "dialog": 13 }
+}

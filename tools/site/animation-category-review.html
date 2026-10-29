@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__GAME__ · __TITLE__</title><link rel="icon" href="data:,">
+<style>
+:root{color-scheme:dark;font:15px/1.5 system-ui,sans-serif;background:#17191e;color:#eee7d9}*{box-sizing:border-box}body{margin:0}main{max-width:1400px;margin:auto;padding:24px}a{color:#e7ba76}h1{font:36px Georgia,serif;margin:12px 0}h2{font-size:17px;margin:0}p{max-width:1000px;color:#c7bdad}.toolbar{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px;background:#24262e;border:1px solid #53505a;border-radius:8px}button,select,input{font:inherit}button,select{padding:7px 10px;border:1px solid #71635c;border-radius:5px;color:#f4e9d6;background:#36323a;cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #ecc17c;outline-offset:3px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:16px;margin-top:20px}.clip{padding:15px;border:1px solid #514b4b;border-radius:8px;background:#232329}.clip canvas{display:block;width:100%;height:auto;margin:12px 0;image-rendering:pixelated;border:1px solid #575256;background:#d9d4c7}.clip .meta{display:flex;justify-content:space-between;gap:12px;font:13px ui-monospace,monospace;color:#e3c592}.clip input[type=range]{width:100%}.clip p{font-size:13px;min-height:20px;margin:8px 0}.file{font-size:11px;color:#bfb6a8;overflow-wrap:anywhere}.hidden{display:none!important}#status{margin-left:auto;font-size:13px}#error{color:#ffb0a2;white-space:pre-wrap}.notes{background:#302b25;border-left:3px solid #e7ba76;padding:10px 14px}#engine-links a{display:inline-block;margin-right:20px}@media(max-width:600px){main{padding:14px}h1{font-size:29px}.toolbar{position:static}#status{margin-left:0}}
+</style></head><body><main>
+<a href="../">← Animation test sheets</a> · <a href="/test/">All game tests</a>
+<h1>__TITLE__</h1><p id="intro"></p><div id="engine-links"></div>
+<p>Loops play continuously. Actions replay after a pause. “Pose sequence” cards inspect separate poses and do not claim continuous motion.</p>
+<div class="toolbar" aria-label="Playback controls">
+<button id="play" aria-pressed="true">Pause all</button><button id="previous">← Previous frame</button><button id="next">Next frame →</button><button id="restart">Restart all</button>
+<label>Speed <select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+<label>Background <select id="background"><option value="#d9d4c7">Light</option><option value="#20252d">Dark</option><option value="#ff00ff">Magenta</option></select></label>
+<label><input type="checkbox" id="sockets"> Tool markers</label><label>Find <input type="search" id="filter" size="12" placeholder="Walk, fire…"></label>
+<span id="status" role="status">Loading animation sheets…</span></div>
+<p id="error" role="alert"></p><div class="grid" id="clips"></div>
+</main><script id="animation-data" type="application/json">__DATA__</script><script>
+(() => {
+  'use strict';
+  const data=JSON.parse(document.getElementById('animation-data').textContent);
+  const $=id=>document.getElementById(id), items=[], images={}, sceneImages={};
+  let running=!matchMedia('(prefers-reduced-motion: reduce)').matches, speed=1, background='#d9d4c7', markers=false, last=performance.now();
+  $('intro').textContent=data.note||'';
+  for(const entry of data.engineTests||[]){const a=document.createElement('a');a.href=entry.url;a.textContent=entry.title;$('engine-links').append(a);}
+  function setRunning(value){running=value;$('play').textContent=running?'Pause all':'Play all';$('play').setAttribute('aria-pressed',String(running));last=performance.now();}
+  function locate(item){let t=item.elapsed;for(let i=0;i<item.clip.frames.length;i++){if(t<item.clip.durations[i])return i;t-=item.clip.durations[i];}return item.clip.frames.length-1;}
+  function paintScene(item,frame){
+    const ctx=item.ctx, scene=item.clip.scene, [w,h]=item.clip.cell, scale=scene.scale;
+    const [footX,footY]=scene.rearFoot, [anchorX,anchorY]=scene.sheetRearFoot;
+    const [collarX,collarY]=scene.collar, angle=(180-scene.angle)*Math.PI/180;
+    const grip=data.sockets[item.clip.sheet][frame].fists;
+    const gx=footX+(anchorX-grip[0])*scale, gy=footY+(grip[1]-anchorY)*scale;
+    const dx=Math.cos(angle),dy=Math.sin(angle), reach=(gx-collarX)*dx+(gy-collarY)*dy;
+    ctx.save();ctx.scale(2,2);ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(sceneImages[scene.background],0,0,640,360);
+    // The whole wooden prop slides, while the negative-axis part is hidden
+    // inside the painted collar. Keep the 58-degree axis even on bad art frames.
+    const handle=sceneImages['assets/game/'+scene.handle], length=(handle.width-4)*scale;
+    ctx.save();ctx.translate(collarX,collarY);ctx.rotate(angle);
+    ctx.beginPath();ctx.rect(0,-20,150,40);ctx.clip();
+    ctx.drawImage(handle,reach-length-2*scale,-handle.height*scale/2,handle.width*scale,handle.height*scale);
+    ctx.restore();
+    ctx.save();ctx.translate(footX+anchorX*scale,footY-anchorY*scale);ctx.scale(-scale,scale);
+    ctx.drawImage(images[item.clip.sheet],frame%item.clip.grid[0]*w,Math.floor(frame/item.clip.grid[0])*h,w,h,0,0,w,h);
+    ctx.restore();
+    if(markers){
+      ctx.strokeStyle='#ffd35b';ctx.lineWidth=.6;ctx.beginPath();
+      ctx.moveTo(collarX,collarY);ctx.lineTo(collarX+dx*90,collarY+dy*90);ctx.stroke();
+      ctx.strokeStyle='#00dafa';ctx.beginPath();ctx.arc(gx,gy,3,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='#80ff90';ctx.beginPath();ctx.moveTo(footX-3,footY);ctx.lineTo(footX+3,footY);ctx.stroke();
+    }
+    ctx.restore();
+    item.canvas.dataset.grip=JSON.stringify([gx,gy]);
+    item.canvas.dataset.handleTip=JSON.stringify([collarX+dx*reach,collarY+dy*reach]);
+  }
+  function paint(item,force=false){
+    const at=locate(item), frame=item.clip.frames[at];
+    if(!force&&item.at===at)return;
+    item.at=at;const [w,h]=item.clip.cell, cols=item.clip.grid[0],ctx=item.ctx;
+    ctx.fillStyle=background;ctx.fillRect(0,0,item.canvas.width,item.canvas.height);ctx.imageSmoothingEnabled=false;
+    if(item.clip.scene){paintScene(item,frame);}else{
+      ctx.drawImage(images[item.clip.sheet],frame%cols*w,Math.floor(frame/cols)*h,w,h,0,0,w,h);
+      if(markers){for(const [label,[x,y]] of Object.entries(data.sockets[item.clip.sheet]?.[frame]||{})){ctx.strokeStyle='#00c8ed';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-4,y);ctx.lineTo(x+4,y);ctx.moveTo(x,y-4);ctx.lineTo(x,y+4);ctx.stroke();ctx.fillStyle='#00c8ed';ctx.font='10px sans-serif';ctx.fillText(label,x+5,y-5);}}
+    }
+    item.canvas.dataset.frame=String(frame);item.canvas.dataset.position=String(at);item.label.textContent=`Cell ${frame} · ${at+1}/${item.clip.frames.length}`;item.slider.value=String(at);
+  }
+  function step(delta){setRunning(false);for(const item of items){const at=(locate(item)+delta+item.clip.frames.length)%item.clip.frames.length;item.elapsed=item.clip.durations.slice(0,at).reduce((a,b)=>a+b,0);paint(item,true);}}
+  function tick(now){const dt=Math.min(now-last,100);last=now;if(running){for(const item of items){const hold=item.clip.mode==='loop'?0:700;item.elapsed=(item.elapsed+dt*speed)%(item.total+hold);paint(item);}}requestAnimationFrame(tick);}
+  $('play').onclick=()=>setRunning(!running);$('previous').onclick=()=>step(-1);$('next').onclick=()=>step(1);
+  $('restart').onclick=()=>{for(const item of items){item.elapsed=0;paint(item,true);}};
+  $('speed').onchange=()=>speed=Number($('speed').value);
+  $('background').onchange=()=>{background=$('background').value;for(const item of items)paint(item,true);};
+  $('sockets').onchange=()=>{markers=$('sockets').checked;for(const item of items)paint(item,true);};
+  $('filter').oninput=()=>{const q=$('filter').value.trim().toLowerCase();for(const item of items)item.card.classList.toggle('hidden',!(item.clip.title+' '+item.clip.sheet).toLowerCase().includes(q));};
+  document.addEventListener('keydown',event=>{if(event.target.matches('input,select,button'))return;if(event.code==='Space'){event.preventDefault();setRunning(!running);}if(event.code==='ArrowRight'){event.preventDefault();step(1);}if(event.code==='ArrowLeft'){event.preventDefault();step(-1);}});
+  Promise.all([[data.sheets,images],[data.sceneImages||{},sceneImages]].flatMap(([sources,target])=>Object.entries(sources).map(([name,src])=>new Promise((resolve,reject)=>{const im=new Image();target[name]=im;im.onload=resolve;im.onerror=()=>reject(new Error('Could not load '+name));im.src=src;})))).then(()=>{
+    for(const clip of data.clips){
+      if(images[clip.sheet].naturalWidth!==clip.cell[0]*clip.grid[0]||images[clip.sheet].naturalHeight!==clip.cell[1]*clip.grid[1])throw new Error('Atlas dimensions do not match '+clip.sheet);
+      const card=document.createElement('article');card.className='clip';card.dataset.clip=clip.id;
+      if(clip.scene)card.style.gridColumn='1 / -1';
+      const title=document.createElement('h2');title.textContent=clip.title;card.append(title);
+      const meta=document.createElement('div');meta.className='meta';const mode=document.createElement('span');mode.textContent=clip.mode==='loop'?'Loop':clip.mode==='poses'?'Pose sequence':'Action · repeats after pause';const label=document.createElement('span');meta.append(mode,label);card.append(meta);
+      const canvas=document.createElement('canvas');[canvas.width,canvas.height]=clip.cell;canvas.setAttribute('role','img');canvas.setAttribute('aria-label',clip.title+' animation');card.append(canvas);
+      if(clip.scene){canvas.width=1280;canvas.height=720;}
+      const slider=document.createElement('input');slider.type='range';slider.min=0;slider.max=clip.frames.length-1;slider.value=0;slider.setAttribute('aria-label',clip.title+' frame');card.append(slider);
+      const file=document.createElement('div');file.className='file';file.textContent=clip.sheet;card.append(file);
+      const note=document.createElement('p');note.textContent=clip.note||'';card.append(note);$('clips').append(card);
+      const item={clip,card,canvas,ctx:canvas.getContext('2d'),slider,label,at:-1,elapsed:0,total:clip.durations.reduce((a,b)=>a+b,0)};items.push(item);
+      slider.oninput=()=>{setRunning(false);item.elapsed=clip.durations.slice(0,Number(slider.value)).reduce((a,b)=>a+b,0);paint(item,true);};paint(item,true);
+    }
+    $('status').textContent=`${items.length} playable clips · ${Object.keys(images).length} sheets`;
+    setRunning(running);window.ANIMATION_REVIEW={data,snapshot:()=>({running,speed,clips:items.map(i=>({id:i.clip.id,frame:Number(i.canvas.dataset.frame),position:i.at}))})};window.ANIMATION_REVIEW_READY=true;requestAnimationFrame(tick);
+  }).catch(error=>{$('error').textContent=error.message;$('status').textContent='Animation review failed';console.error(error);});
+})();
+</script></body></html>

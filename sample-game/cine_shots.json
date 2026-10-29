@@ -1,0 +1,6 @@
+{
+ "_about": "Scenes for tools/cine_shots.py --game cincinnatus (job fw-F5a): `set` runs first, `starts` is the script that sets up each scene (run once the game has booted, as the page's TEST_START), `plan` is what to do after each script ends: [x, y] walks there and presses Z, [\"exit\", x, y] walks into an exit. Frames land in shots/cine/<scene>_NN.png.",
+ "set": "const h = G.hero; G.banner = null; CAST_I = 0; ",
+ "starts": { "envoys": "G.f = { cin_met: 1 }; cinJump('envoys');" },
+ "plan": { "envoys": [] }
+}

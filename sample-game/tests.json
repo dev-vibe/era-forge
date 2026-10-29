@@ -1,0 +1,10 @@
+{
+ "_about": "The sample game's test catalogue (`npx eraforge test [group]` in the framework checkout; the tests are the framework's own checks in testkit/tests/). gate = the release gate (README): run it before every tag.",
+ "groups": {
+  "quick": ["framework_test.py", "cincinnatus_test.py", "zero_names_test.py"],
+  "all": ["framework_test.py", "cincinnatus_test.py", "zero_names_test.py"],
+  "gate": ["framework_test.py", "zero_names_test.py", "cincinnatus_test.py"]
+ },
+ "default": "quick",
+ "weights": {"cincinnatus_test.py": 125, "zero_names_test.py": 4, "framework_test.py": 5}
+}
