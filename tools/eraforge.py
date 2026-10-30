@@ -5,6 +5,7 @@
     npx eraforge test [group|test ...] [-j N] [--isolated] [--shots] [--list]   run the game's tests (testkit/run_tests.py)
     npx eraforge scene <step> <scene> [...]         the top-down kit's scene steps: mask, painter, fg, link, trace, list (tools/scene_tool.py)
     npx eraforge run <tool> [args]                  any framework tool, e.g. `run make_char hayato_22`, `run theme_shots shoot out/`
+                                                    (cine_shots <scene>, theme_shots shoot|compare, bal_dump, ... take their settings from the game's config folder)
     npx eraforge path                               print the framework folder (the package, or FW_PATH)
 
 The game is the folder at or above the working directory that holds game.json (in the framework's own checkout: sample-game/).

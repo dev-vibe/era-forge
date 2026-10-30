@@ -47,6 +47,16 @@ browser from `p.chromium.launch()` and pages from `testlib.page`, and keep state
 Review screenshots are skipped in runner runs (`ERAFORGE_SHOTS=0`); `--shots`, or running the test file by itself, takes them; a
 screenshot a check reads back is taken with `check=True`. `--shard I/N` and `--list` split and list a run.
 
+## Test jumps and the generated test page
+
+A game registers the moments worth starting straight into with `defineTestJump(id, { label, group, order, flags, inv, run })` in its own
+files (README: "Test jumps and the test page"). Two rules for tests: (1) a test that wants a moment uses `testJump(id)` (or loads the page
+at `?jump=<id>`) instead of replaying the story up to it, so the moment a tester opens by hand and the one the test checks are the same;
+(2) the jump's definition is the only place that knows how to set it up, so when the story changes the jump changes once and both follow.
+The generated page (`tests.html`) waits for `window.<testReady>` (`game.json` `site.testReady`, default `<ID>_TEST_READY`) once a scenario
+is up; the sample game's `cincinnatus_test.py` shows the checks: every jump starts cleanly, the buttons match the registry, the page keeps
+its own practice save.
+
 ## Machines
 
 `ERAFORGE_CHROMIUM_EXECUTABLE` names a Chrome when Playwright has no Chromium of its own (CI runners, Windows). A game's `eraforge.json`

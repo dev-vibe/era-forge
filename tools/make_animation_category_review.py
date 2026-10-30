@@ -51,10 +51,29 @@ def atlas_root(category):
     return path
 
 
+def merge_hosted(data):
+    """Job fw-F7: a site that hosts other games (eraforge.json `host`) shows their animation test sheets too. Each hosted game keeps its own
+    animation_reviews.json; its categories are added after the host's own, with their art and scenes read from `games/<id>/` (game_path)."""
+    if GAME != gamepaths.DEFAULT: return
+    for hid in gamepaths.games()[1:]:
+        path = Path(gamepaths.config(hid, 'animation_reviews.json'))
+        if not path.is_file(): continue
+        other = json.loads(path.read_text(encoding='utf-8'))
+        if other.get('version') != 1: raise ValueError(f'{hid}: unsupported animation review manifest version')
+        for slug, category in other['categories'].items():
+            if slug in data['categories']: raise ValueError(f'{hid}: category {slug!r} is already in the host\'s animation_reviews.json')
+            category['assetRoot'] = f'games/{hid}/' + category.get('assetRoot', 'assets/game')
+            for clip in category.get('clips', []):
+                if 'scene' in clip:
+                    scene = clip['scene']; scene['background'] = f'games/{hid}/' + scene['background']
+            data['categories'][slug] = category
+
+
 def catalog():
     data = json.loads(MANIFEST.read_text(encoding='utf-8'))
     if data.get('version') != 1:
         raise ValueError('Unsupported animation review manifest version')
+    merge_hosted(data)
     sheets, coverage = {}, {}
     for slug, category in data['categories'].items():
         if not re.fullmatch(r'[a-z0-9-]+', slug):

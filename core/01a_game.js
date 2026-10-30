@@ -167,3 +167,25 @@ function themeUI(name) { const f = THEME_UI[name]; if (!f) throw new Error('them
 function defineThemeFx(type, fn, o) { THEME_FX[type] = fn; if (o && o.raw) THEME_FX_RAW.add(type); else THEME_FX_RAW.delete(type); return fn; }
 const themeFx = type => THEME_FX[type] || THEME_FX.default;
 const themeArt = name => assetImg('theme_' + name);
+
+// ============================================================
+//  9. TEST_JUMPS: the moments a tester can start straight into (job fw-F7, 30 Oct 2026: a tester's links straight to scenes are part of the
+//     framework, not each game's own page). The game registers them from its own content files:
+//       defineTestJump('envoys', { label: 'The envoys at the plough', group: 'Cutscenes', order: 40, flags: { met: 1 }, inv: { bread: 2 },
+//                                  run: () => { enterScene('area_farm', [100, 200, 3]); run(envoyScript()); } })
+//     testJump(id) starts a clean journey: a new hero, the definition's `flags` and `inv` (nothing else), empty system state, no script, dialog,
+//     card or map, G.state = def.state (default 'scene'), then run(). A page opened with ?jump=<id> starts there once its images have loaded
+//     (08_main.js boot2) and sets window.TEST_JUMP. The test page the build generates for a game (buildlib.build writes pub_<id>/tests.html;
+//     the site builder hosts it at /games/<id>/test/ or, for the site's own game, /test/jumps/) shows one button per jump, grouped by `group`
+//     in the order of `order`. A game that registers none gets no such page, and its pages only carry this registry.
+// ============================================================
+const TEST_JUMPS = Object.create(null);
+function defineTestJump(id, def) { TEST_JUMPS[id] = Object.assign({ label: id, group: '', order: 0, state: 'scene' }, def, { id }); return TEST_JUMPS[id]; }
+const testJumpList = () => Object.values(TEST_JUMPS).sort(byOrder);
+function testJump(id) {
+  const d = TEST_JUMPS[id]; if (!d) return false;
+  itemFXReset();
+  G.f = Object.assign({}, d.flags); G.sys = {}; G.hero = newHero(); G.allies = {}; G.active = []; G.inv = Object.assign({}, d.inv); G.map = null; G.card = null;
+  Script.queue = []; Script.active = false; Dialog.active = false;
+  G.state = d.state; d.run(); window.TEST_JUMP = id; return true;
+}

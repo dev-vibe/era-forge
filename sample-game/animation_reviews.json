@@ -1,0 +1,614 @@
+{
+ "_about": "The sample game's animation test sheets (job fw-F7): a hosting game's animation_reviews.json merges these categories into its own (make_animation_category_review.catalog), with assetRoot read inside this game's folder.",
+ "version": 1,
+ "categories": {
+  "cincinnatus": {
+   "title": "Cincinnatus slice (second game)",
+   "note": "Job fw-F6 painterly gouache. All 63 walk drawings and 12 battle poses are reviewable below at game atlas size with normal/slow playback, pause, stepping and scrubbing. Walk order is stand, stride A, stand, stride B. Known defects: several stride pairs repeat limb phases; Racilia's shawl and the young envoy's toga swap sides in a stride; side views are lower-angle than the scene. Down battle poses collapse to a knee, not fully prone. Originals are unchanged; see games/cincinnatus/art-handoff-phase2.md. The engine links show staging and actual battle usage.",
+   "assetRoot": "assets/game",
+   "engineTests": [
+    {
+     "title": "The envoys at the plough (staged cutscene)",
+     "url": "/games/cincinnatus/?jump=envoys"
+    },
+    {
+     "title": "The stake wall at Algidus (minigame, then the breakout)",
+     "url": "/games/cincinnatus/?jump=stakewall"
+    },
+    {
+     "title": "The Aequi breakout after a sound wall (battle)",
+     "url": "/games/cincinnatus/?jump=breakout"
+    },
+    {
+     "title": "Sixteen days later, back at the plough",
+     "url": "/games/cincinnatus/?jump=home"
+    }
+   ],
+   "clips": [
+    {
+     "id": "titus_17-front",
+     "title": "titus_17 · walk front",
+     "sheet": "char_titus_17.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "titus_17-back",
+     "title": "titus_17 · walk back",
+     "sheet": "char_titus_17.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "titus_17-left",
+     "title": "titus_17 · walk left",
+     "sheet": "char_titus_17.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "cincinnatus_50-front",
+     "title": "cincinnatus_50 · walk front",
+     "sheet": "char_cincinnatus_50.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "cincinnatus_50-back",
+     "title": "cincinnatus_50 · walk back",
+     "sheet": "char_cincinnatus_50.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "cincinnatus_50-left",
+     "title": "cincinnatus_50 · walk left",
+     "sheet": "char_cincinnatus_50.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "racilia_45-front",
+     "title": "racilia_45 · walk front",
+     "sheet": "char_racilia_45.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "racilia_45-back",
+     "title": "racilia_45 · walk back",
+     "sheet": "char_racilia_45.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "racilia_45-left",
+     "title": "racilia_45 · walk left",
+     "sheet": "char_racilia_45.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "envoy_a-front",
+     "title": "envoy_a · walk front",
+     "sheet": "char_envoy_a.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "envoy_a-back",
+     "title": "envoy_a · walk back",
+     "sheet": "char_envoy_a.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "envoy_a-left",
+     "title": "envoy_a · walk left",
+     "sheet": "char_envoy_a.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "envoy_b-front",
+     "title": "envoy_b · walk front",
+     "sheet": "char_envoy_b.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "envoy_b-back",
+     "title": "envoy_b · walk back",
+     "sheet": "char_envoy_b.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "envoy_b-left",
+     "title": "envoy_b · walk left",
+     "sheet": "char_envoy_b.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "aequi_30-front",
+     "title": "aequi_30 · walk front",
+     "sheet": "char_aequi_30.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "aequi_30-back",
+     "title": "aequi_30 · walk back",
+     "sheet": "char_aequi_30.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "aequi_30-left",
+     "title": "aequi_30 · walk left",
+     "sheet": "char_aequi_30.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "aequi_40-front",
+     "title": "aequi_40 · walk front",
+     "sheet": "char_aequi_40.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      0,
+      1,
+      0,
+      2
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "aequi_40-back",
+     "title": "aequi_40 · walk back",
+     "sheet": "char_aequi_40.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      3,
+      4,
+      3,
+      5
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "aequi_40-left",
+     "title": "aequi_40 · walk left",
+     "sheet": "char_aequi_40.png",
+     "grid": [
+      3,
+      3
+     ],
+     "frames": [
+      6,
+      7,
+      6,
+      8
+     ],
+     "durations": [
+      130,
+      130,
+      130,
+      130
+     ],
+     "mode": "loop",
+     "note": "All frames; intended stand/A/stand/B loop. Inspect feet, repeated stride phases, cloth and spear tips."
+    },
+    {
+     "id": "titus_17-poses",
+     "title": "titus_17 · six battle poses",
+     "sheet": "pose_titus_17.png",
+     "grid": [
+      3,
+      2
+     ],
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "durations": [
+      700,
+      700,
+      700,
+      700,
+      700,
+      700
+     ],
+     "mode": "poses",
+     "note": "Ready, wind-up, cut, hurt, guard, down. Discrete engine poses, not a continuous six-frame animation."
+    },
+    {
+     "id": "titus_17-attack",
+     "title": "titus_17 · attack and recover",
+     "sheet": "pose_titus_17.png",
+     "grid": [
+      3,
+      2
+     ],
+     "frames": [
+      0,
+      1,
+      2,
+      0
+     ],
+     "durations": [
+      350,
+      180,
+      220,
+      350
+     ],
+     "mode": "once",
+     "note": "Attack phase inspection. Engine battle link above supplies actual timing and movement."
+    },
+    {
+     "id": "cincinnatus_50-poses",
+     "title": "cincinnatus_50 · six battle poses",
+     "sheet": "pose_cincinnatus_50.png",
+     "grid": [
+      3,
+      2
+     ],
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "durations": [
+      700,
+      700,
+      700,
+      700,
+      700,
+      700
+     ],
+     "mode": "poses",
+     "note": "Ready, wind-up, cut, hurt, guard, down. Discrete engine poses, not a continuous six-frame animation."
+    },
+    {
+     "id": "cincinnatus_50-attack",
+     "title": "cincinnatus_50 · attack and recover",
+     "sheet": "pose_cincinnatus_50.png",
+     "grid": [
+      3,
+      2
+     ],
+     "frames": [
+      0,
+      1,
+      2,
+      0
+     ],
+     "durations": [
+      350,
+      180,
+      220,
+      350
+     ],
+     "mode": "once",
+     "note": "Attack phase inspection. Engine battle link above supplies actual timing and movement."
+    }
+   ]
+  }
+ }
+}

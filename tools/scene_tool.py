@@ -17,7 +17,9 @@
 # open small gaps, optionally drop specks, trim edges or cut extra holes, erode for the feet, and write the outline (and the holes, and
 # any "secret" islands) in the painting's own pixels. A scene's quirks are settings, not code; the town keeps its one named hook.
 # painter replaces make_gp_<scene>.py, make_fgp_<scene>.py and make_road_ground_page.py (fw-C2b): one page builder over the templates in
-# kits/topdown/painters/ (v1 and v2 Ground Painter) or the game's own (a road ground audit, a Foreground Painter); the page's text is in the settings.
+# kits/topdown/painters/ (v1 and v2 Ground Painter, the Foreground Painter, the road ground audit; job fw-F7) or the game's own; the page's text is in the settings.
+# A template's slots: __IMG__ __GREEN__ __RED__ (the images), __TITLE__ __INTRO__ __KEY__ __FILE__ __LABEL__ __SLUG__ __ALT__ (the settings), and from game.json
+# __GAME__ (name), __GAMEID__ (id) and __HERO__ (hero.name); a Foreground Painter's text edits (`text`) rewrite its default words.
 # fg replaces make_fg.py, make_fg_<scene>.py, make_fg_room_<scene>.py and refine_fg_<scene>.py (fw-C2b): it only CUTS what the image model
 # or Ash made (a magenta model layer or Ash's magenta-on-black mask); the pixels always come from the original painting. The town keeps
 # its named hook (fg_town_lib.py: the bridge cut and the tree slice). No new masks are drawn here.
@@ -213,9 +215,12 @@ def painter(sid, cfg, fg=False, quiet=False):
         elif 'title' in c:
             assert '<title>Ground Painter</title>' in t
             t = t.replace('<title>Ground Painter</title>', '<title>%s</title>' % c['title'])
-        for k in ('intro', 'key', 'file', 'label', 'slug'):
+        for k in ('intro', 'key', 'file', 'label', 'slug', 'alt'):
             if k in c: t = t.replace('__%s__' % k.upper(), c[k])
         t = t.replace('__IMG__', img).replace('__GREEN__', green)
+    gj = gamepaths.game_json(GAME)   # the game's own names fill the templates' slots (job fw-F7): __GAME__ its name, __GAMEID__ its id, __HERO__ its hero
+    for slot, value in (('__GAME__', gj.get('name') or GAME), ('__GAMEID__', gj.get('id') or GAME), ('__HERO__', (gj.get('hero') or {}).get('name', 'the hero'))):
+        t = t.replace(slot, value)
     assert not re.search(r'__[A-Z]+__', t), 'a placeholder is left in the page'
     assert all(a not in t for a in c.get('absent', [])), 'template text that should have been replaced is still there'
     if os.path.dirname(c['out']): os.makedirs(os.path.dirname(c['out']), exist_ok=True)

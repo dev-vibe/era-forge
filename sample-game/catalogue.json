@@ -1,5 +1,5 @@
 {
- "_about": "The sample game's card on a hosting game's test hub (Ronin hosts it at /games/cincinnatus/ through its eraforge.json `host`); build_site.py reads it for every hosted game. No test pages of its own yet (tests: []).",
+ "_about": "The sample game's card on a hosting game's test hub (Ronin hosts it at /games/cincinnatus/ through its eraforge.json `host`); build_site.py reads it for every hosted game. Its test page is generated from its test jumps (src/90_jumps.js) and its animation sheets are its own animation_reviews.json, which a host merges in; tests: [] because it has no hand-written test pages.",
  "title": "Cincinnatus, 458 BC",
  "note": "The second-game slice (framework job F6): the farm across the Tiber, the envoys at the plough, the stake wall and the breakout at Algidus. Stand-in art until the app paintings land.",
  "tests": []

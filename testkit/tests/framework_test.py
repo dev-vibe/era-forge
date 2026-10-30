@@ -50,11 +50,24 @@ except (ValueError, IndexError, KeyError): files = set(); print(r.stdout[-500:],
 for need in ('bin/eraforge.js', 'core/01_core.js', 'core/08_main.js', 'core/shell.html', 'systems/05_items.js', 'kits/topdown/05c_scene.js', 'kits/topdown/editor.html',
              'kits/battle-turn/07_battle.js', 'kits/minigame/05a_minigame.js', 'themes/plain/theme.json', 'tools/eraforge.py', 'tools/buildlib.py', 'tools/build_site.py',
              'tools/gamepaths.py', 'tools/scene_tool.py', 'testkit/testlib.py', 'testkit/run_tests.py', 'testkit/worker.py', 'sample-game/game.json',
-             'skills/next-job/SKILL.md', 'playbooks/testing.md', 'README.md'):
+             'skills/next-job/SKILL.md', 'skills/fw-upgrade/SKILL.md', 'playbooks/testing.md', 'README.md',
+             'tools/cine_shots.py', 'tools/theme_shots.py', 'tools/review_page.py', 'tools/bal_sim.py', 'tools/bal_dump.py', 'tools/site/test-tools.js',
+             'tools/site/test-tools.css', 'tools/site/saves.html', 'kits/topdown/painters/gp_foreground_painter_template.html',
+             'kits/topdown/painters/road_ground_painter_template.html', 'sample-game/animation_reviews.json'):
     check(need in files, f'the package ships {need}')
 check(not any(f.startswith(('sample-game/assets/raw/', 'sample-game/pub_')) or '/pub_' in f or f.endswith('.pyc') for f in files), 'the package ships no raw art, built pages or caches')
 version = json.load(open(os.path.join(FW, 'package.json'), encoding='utf-8'))['version']
 check(f'## {version}' in open(os.path.join(FW, 'CHANGELOG.md'), encoding='utf-8').read(), f'CHANGELOG.md has a section for {version}')
+# job fw-F7: the upgrade table says, per release, whether a game must change something; each section says what
+import re
+log = open(os.path.join(FW, 'CHANGELOG.md'), encoding='utf-8').read()
+rows = re.findall(r'(?m)^\| (\d+\.\d+\.\d+) \([^)]*\) \| `([^`]*)` \| ([^|]+) \|', log)
+check(any(r[0] == version for r in rows), f'the CHANGELOG upgrade table has a row for {version}')
+check(all(re.fullmatch(r'[0-9a-f]{40}', sha) for v, sha, _ in rows if v != version), 'every earlier release in the upgrade table names its full commit sha')
+sections = re.findall(r'(?m)^## (\d+\.\d+\.\d+) ', log)
+check(sections[:1] == [version] and [r[0] for r in rows] == sections, 'the upgrade table lists the releases in the order of their sections, the newest first')
+body = log.split(f'## {version} ', 1)[1].split('\n## ', 1)[0] if f'## {version} ' in log else ''
+check(version == '0.1.0' or '### What a game must change' in body, f'the {version} section says what a game must change')
 
 # ---- the sample game
 sample = gamepaths.game_dir(gamepaths.SAMPLE_ID)

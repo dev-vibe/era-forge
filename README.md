@@ -16,10 +16,11 @@ kits/
   battle-turn/ timing ring, intents, posture, battle draw and effect recipes
   minigame/    the shell, rhythm core, timing and posture helpers
 themes/        plain/ (the test theme every game can build with) and README.md (the theme contract)
-tools/         eraforge.py (the command), build.py + buildlib.py, build_site.py, gamepaths.py, the scene command, sprite slicers, audio tools,
-               animation test sheets
+tools/         eraforge.py (the command), build.py + buildlib.py (pages and the generated test page), build_site.py, gamepaths.py, the scene
+               command, sprite slicers, audio tools, animation test sheets, the cutscene shooter (cine_shots), the theme screenshot tool
+               (theme_shots), review_page, the balance simulator (bal_sim, bal_dump); tools/site/ (the hosted site's own files, with slots)
 testkit/       testlib.py, run_tests.py, worker.py; tests/ (the framework's own checks)
-skills/        agent skills: next-job, new-game
+skills/        agent skills: next-job, new-game, fw-upgrade
 playbooks/     engineering conventions: testing, the setup interview, the lessons log
 sample-game/   Cincinnatus, 458 BC: the game the release gate builds and plays
 bin/           the npm command (`eraforge`)
@@ -53,14 +54,33 @@ game before it is released. No git submodules.
 
 | File | What it is |
 | --- | --- |
-| `game.json` | id, name, title, screen, kits, theme, save key, hero, currency, start... injected into the page as `const GAME` (keys `_about`, `art` and `release` are not shipped) |
+| `game.json` | id, name, title, screen, kits, theme, save key, hero, currency, start... injected into the page as `const GAME` (keys `_about`, `art`, `release` and `site` are not shipped; `site` names the site files' flags and keys, see below) |
 | `src/*.js` | the game's content and hooks: registered content kinds, story, scenes, its own systems' halves; joined with the engine's files in file-name order |
 | `assets/game/` | processed art and audio the build reads, `*.scene.json` (painted scenes' geometry), `meta.json`; `assets/raw/` (originals) stays out of git |
 | `themes/<id>/` | the game's look, if not `plain` (contract: `themes/README.md`) |
 | `catalogue.json` | the hosted test pages and the hub card (`build_site.py`'s docstring has the format) |
 | `tests.json` | the test groups (`playbooks/testing.md`) |
 | `eraforge.json` | optional settings that are not game data: `pub`, `build` (own page builder), `config` (folder of the tools' settings files), `tests`, `host` (other games to serve at `/games/<id>/`), `testlib` |
-| tool settings | `scene_tool.json` (+ `scene_hooks.py` for named steps), `animation_reviews.json`, `art.json`, ... in the config folder |
+| tool settings | `scene_tool.json` (+ `scene_hooks.py` for named steps), `animation_reviews.json`, `cine_shots.json`, `theme_shots.json`, `art.json`, ... in the config folder; `bal/` (the balance simulator's policy and `data.json`) |
+
+## Test jumps and the test page
+
+A game registers the moments a tester wants to start straight into, in its own content files (`TEST_JUMPS`, `core/01a_game.js` section 9):
+
+```js
+defineTestJump('envoys', { label: 'The envoys at the plough', group: 'Cutscenes', order: 40, flags: { met: 1 }, inv: { bread: 2 },
+                           run: () => { enterScene('area_farm', [100, 200, 3]); run(envoyScript()); } });
+```
+
+`testJump(id)` starts a clean journey (a new hero, the definition's `flags` and `inv`, nothing else) and runs the definition; opening
+the game page at `?jump=<id>` does the same once the images have loaded, so every moment starts the same way. A game that registers
+jumps gets a **generated test page** from its build (`tests.html` next to `index.html`, and `tests_fragment.html` for the site): the
+game and a bar with one button per jump, grouped, a "Restart this test" button and its own practice save slot (`<id>_review_jumps`), never
+the player's journey. The site builder hosts it at `/games/<id>/test/` (and the main game's at `/test/jumps/`), and the hub gets a card.
+A game with its own, older test hub keeps it; the generated page is added beside it. The names the site files carry come from `game.json`
+(`site`: `testReady` the window flag a test page sets when its scenario is up, default `<ID>_TEST_READY`; `controlsKey` the
+sessionStorage prefix of a test page's settings, default `<id>_test_controls_`; `saveBackupKey` the saved-games page's backup key,
+default `saveKey` with `_vN` turned into `_backup_vN`). A game may put its own file of the same name in `tools/site/` and it is used as it is.
 
 ## The release gate
 
@@ -79,7 +99,7 @@ All three must pass. A release that changes the engine is also tried on each gam
 checkout (Ronin: `FW_PATH=../era-forge python3 run_tests.py all hosting_test.py test_hub_test.py`). A game never has to be green for a
 framework release, but a break found there is fixed first.
 
-**Releasing:** bump `version` in `package.json`, add its section to `CHANGELOG.md` (what a game must change, and the release's commit once pushed), run the gate, commit and push `main`. The pushed commit is the release: games move to it by pinning its full sha (`github:dev-vibe/era-forge#<sha>`; a job of its own).
+**Releasing:** bump `version` in `package.json`, add its section to `CHANGELOG.md` (a row in the upgrade table, "what a game must change", and the release's commit once pushed), run the gate, commit and push `main`. The pushed commit is the release: games move to it by pinning its full sha (`github:dev-vibe/era-forge#<sha>`; a job of its own; the `fw-upgrade` skill is its procedure).
 
 ## Conventions every game keeps
 

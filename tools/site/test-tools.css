@@ -1,0 +1,28 @@
+:root { color-scheme: dark; }
+body { --reserve: 92px; height: auto; min-height: 100dvh; overflow: auto; }
+body.touch { --reserve: 224px; }
+.host-nav { padding: 8px 12px; font: 13px system-ui; text-align: center; color: #a89a80; }
+a { color: #d4a14a; }
+.test-tools { max-width: 1280px; text-align: center; font: 14px system-ui; }
+.test-tools select { margin: 0 12px 0 6px; padding: 7px; background: #2b1c18; color: #eadcbf; border: 1px solid #a89a80; border-radius: 4px; font: inherit; }
+.test-tools p { margin: 10px 0 0; color: #a89a80; }
+body:has(.test-tools) { justify-content: flex-start; }
+body:has(.test-tools) .frame { flex: none; width: min(100%, 1100px); }
+.jumps { max-width: 1280px; }
+.jumps button { cursor: pointer; }
+.jumps button[aria-pressed="true"], #bossPanel button[aria-pressed="true"] { outline: 2px solid #d4a14a; outline-offset: 2px; }
+.jumps button { font: 13px system-ui; color: #eadcbf; background: #2b1c18; border: 1px solid #5a3a30; border-radius: 4px; padding: 7px 10px; }
+.jumps { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.test-hub { margin: 0; padding: 40px 22px; background: radial-gradient(ellipse at top, #2a1a1c, #0f0b0e 70%); color: #eadcbf; font: 16px/1.6 system-ui; }
+.test-hub main { max-width: 1080px; margin: auto; }
+.eyebrow { margin-top: 42px; color: #d4a14a; letter-spacing: .18em; font-size: 12px; }
+.test-hub h1 { margin: 0; font: 44px Georgia, serif; }
+.test-hub main > p:not(.eyebrow) { max-width: 720px; color: #b9ab93; }
+.test-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 16px; margin-top: 28px; }
+.test-card { display: flex; flex-direction: column; padding: 22px; border: 1px solid #5a3a30; border-radius: 6px; background: #1a1216; color: #eadcbf; text-decoration: none; }
+.test-card h2 { margin: 0; font: 24px Georgia, serif; }
+.test-card p { color: #b9ab93; font-size: 14px; flex: 1; }
+.test-card span { color: #d4a14a; font-size: 14px; }
+.test-card:hover, .test-card:focus-visible { border-color: #d4a14a; background: #291b20; }
+:focus-visible { outline: 2px solid #d4a14a; outline-offset: 3px; }
+@media(max-width:600px) { .test-hub { padding: 24px 16px; } .test-tools select { display: block; margin: 8px auto; } }

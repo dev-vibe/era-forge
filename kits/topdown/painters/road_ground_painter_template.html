@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__GAME__ · __LABEL__ ground audit</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#211e1a;color:#f5e7c9;font:15px/1.45 system-ui,sans-serif}
+header{max-width:1450px;margin:auto;padding:16px 22px 10px}h1{font:28px Georgia,serif;margin:0 0 6px}p{margin:5px 0;color:#d6c6aa}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 22px;background:#302a23;border-block:1px solid #63513d}
+button,.file{font:inherit;color:#f5e7c9;background:#463c30;border:1px solid #8f7658;border-radius:4px;padding:8px 12px;cursor:pointer}
+button[aria-pressed=true]{background:#a33b2c;border-color:#e28e70}button.primary{background:#a33b2c;font-weight:600}button:disabled{opacity:.4;cursor:default}
+label{display:flex;align-items:center;gap:7px}.file input{max-width:190px}input[type=range]{width:100px;accent-color:#d7ad6a}
+#viewport{height:calc(100vh - 280px);min-height:390px;overflow:auto;position:relative;background:#100f0d;padding:14px}
+#stage{position:relative;margin:auto;line-height:0;touch-action:none}#painting{display:block;width:100%;height:100%;pointer-events:none}
+#mask{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}footer{padding:10px 22px;color:#cbbb9e}#status{color:#f5dfb9}
+@media(max-width:800px){header{padding:12px}.bar{padding:10px;gap:7px}#viewport{height:60vh}h1{font-size:24px}}
+</style>
+<header><h1>__LABEL__ · where __HERO__ may walk</h1>
+<p><strong>Green means feet can stand here.</strong> The model supplied this first pass; it has not been accepted as collision.</p>
+<p>Keep the main road open from the right entrance to the left exit. __INTRO__</p></header>
+<div class="bar">
+<button id="paint" aria-pressed="false">B · Add ground</button><button id="erase" aria-pressed="false">E · Remove ground</button>
+<label>Brush <input id="brush" type="range" min="2" max="90" value="24"><span id="brushValue">24</span></label>
+<button id="undo">Undo</button><button id="redo">Redo</button>
+<label>Green <input id="opacity" type="range" min="0" max="100" value="45"></label>
+<button id="fit">Fit</button><button id="minus">−</button><button id="plus">+</button>
+<button id="export" class="primary" disabled>Export audited ground</button>
+<label class="file">Import audit <input id="import" type="file" accept="image/png"></label>
+<button id="reset">Reset to model</button></div>
+<div id="viewport"><div id="stage"><img id="painting" alt="__ALT__"><canvas id="mask" aria-label="Editable walkable ground mask"></canvas></div></div>
+<footer><span id="status" role="status">Loading originals…</span><br>Edits are kept in this browser. Export the audited PNG and attach it in the chat when finished. Foreground and collision wait for your audit.</footer>
+<script>
+const PAINT='__IMG__', GROUND='__GREEN__', KEY='__GAMEID__-__SLUG__-ground-v1';
+const $=id=>document.getElementById(id), canvas=$('mask'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+const original=new Image(), painting=$('painting');let ready=false,mode='erase',zoom=1,drawing=false,old=null,last=null,history=[],future=[];
+function message(s){$('status').textContent=s}
+function buttons(){$('paint').setAttribute('aria-pressed',mode==='paint');$('erase').setAttribute('aria-pressed',mode==='erase');$('undo').disabled=!history.length;$('redo').disabled=!future.length}
+function store(){try{localStorage.setItem(KEY,canvas.toDataURL())}catch(e){message('Edits are ready to export. Browser storage is full.')}}
+function fit(){zoom=Math.max(.1,($('viewport').clientWidth-30)/canvas.width);size()}
+function size(){$('stage').style.width=Math.round(canvas.width*zoom)+'px';$('stage').style.height=Math.round(canvas.height*zoom)+'px'}
+function maskImage(img){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);const d=ctx.getImageData(0,0,canvas.width,canvas.height);for(let i=0;i<d.data.length;i+=4){const on=d.data[i+3]>0&&d.data[i+1]-Math.max(d.data[i],d.data[i+2])>60;d.data[i]=0;d.data[i+1]=255;d.data[i+2]=0;d.data[i+3]=on?255:0}ctx.putImageData(d,0,0)}
+function restore(d){ctx.putImageData(d,0,0);buttons();store()}
+function point(e){const r=canvas.getBoundingClientRect();return[(e.clientX-r.left)*canvas.width/r.width,(e.clientY-r.top)*canvas.height/r.height]}
+function stroke(a,b){ctx.globalCompositeOperation=mode==='erase'?'destination-out':'source-over';ctx.strokeStyle='#00ff00';ctx.lineWidth=+$('brush').value;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0]+.001,b[1]);ctx.stroke();ctx.globalCompositeOperation='source-over'}
+canvas.onpointerdown=e=>{if(!ready||e.button!==0)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);old=ctx.getImageData(0,0,canvas.width,canvas.height);drawing=true;last=point(e);stroke(last,last)};
+canvas.onpointermove=e=>{if(!drawing)return;const p=point(e);stroke(last,p);last=p};
+function end(){if(!drawing)return;drawing=false;history.push(old);if(history.length>25)history.shift();future=[];buttons();store();message('Audit edited · export when finished.')}
+canvas.onpointerup=end;canvas.onpointercancel=end;
+$('paint').onclick=()=>{mode='paint';buttons()};$('erase').onclick=()=>{mode='erase';buttons()};
+$('undo').onclick=()=>{if(!history.length)return;future.push(ctx.getImageData(0,0,canvas.width,canvas.height));restore(history.pop())};
+$('redo').onclick=()=>{if(!future.length)return;history.push(ctx.getImageData(0,0,canvas.width,canvas.height));restore(future.pop())};
+$('brush').oninput=()=>{$('brushValue').textContent=$('brush').value};$('opacity').oninput=()=>{canvas.style.opacity=$('opacity').value/100};
+$('fit').onclick=fit;$('plus').onclick=()=>{zoom=Math.min(4,zoom*1.3);size()};$('minus').onclick=()=>{zoom=Math.max(.1,zoom/1.3);size()};
+$('reset').onclick=()=>{if(!ready||!confirm('Discard this audit and restore the model’s original ground mask?'))return;history.push(ctx.getImageData(0,0,canvas.width,canvas.height));future=[];maskImage(original);buttons();store();message('Model mask restored · awaiting your audit.')};
+$('export').onclick=()=>{end();const out=document.createElement('canvas');out.width=canvas.width;out.height=canvas.height;const g=out.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,out.width,out.height);g.drawImage(canvas,0,0);out.toBlob(blob=>{const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download='area_road___SLUG___walkable_only_ash.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);message('Audited ground exported · attach the PNG in this chat.')},'image/png')};
+$('import').onchange=e=>{const file=e.target.files[0];if(!file)return;const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{if(img.width!==canvas.width||img.height!==canvas.height){message('Audit dimensions differ from the original. Please use an export from this page.');URL.revokeObjectURL(url);return}history.push(ctx.getImageData(0,0,canvas.width,canvas.height));future=[];maskImage(img);buttons();store();URL.revokeObjectURL(url);message('Imported audit · ready to edit or export.')};img.src=url};
+document.onkeydown=e=>{if(e.target.matches('input'))return;if(e.key.toLowerCase()==='b')$('paint').click();if(e.key.toLowerCase()==='e')$('erase').click();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();$(e.shiftKey?'redo':'undo').click()}};
+Promise.all([new Promise(ok=>{painting.onload=ok;painting.src=PAINT}),new Promise(ok=>{original.onload=ok;original.src=GROUND})]).then(()=>{canvas.width=painting.naturalWidth;canvas.height=painting.naturalHeight;maskImage(original);canvas.style.opacity=.45;ready=true;$('export').disabled=false;fit();buttons();message('Model ground loaded · awaiting your audit.');let saved=null;try{saved=localStorage.getItem(KEY)}catch(e){}if(saved){const img=new Image();img.onload=()=>{maskImage(img);message('Your saved audit restored · ready to edit or export.')};img.src=saved}window.AUDIT_READY=true});
+</script></html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__GAME__ — Saved games</title>
+<style>
+body{color:#eadcbf;background:#171014;font:17px/1.6 system-ui;max-width:660px;margin:40px auto;padding:0 22px}h1{color:#d4a14a;font-family:serif}button,a{color:#d4a14a}button{font:inherit;background:#291c20;border:1px solid #82633c;border-radius:6px;padding:8px 14px;cursor:pointer}button:disabled{opacity:.4;cursor:default}section{margin:30px 0;border-top:1px solid #634738;padding-top:12px}input{max-width:100%;font:inherit}#status{min-height:2em}small{color:#bcae98}
+</style></head><body>
+<p><a href="/">← Back to __GAME__</a></p><h1>Saved games</h1>
+<p>Keep a copy of your journey or bring a __GAME__ save file to this browser. Files stay on your device.</p>
+<section><h2>Download your journey</h2><p>In the game, open the menu and choose Save first. This downloads that last saved journey.</p>
+<button id="download">Download save</button> <button id="backup" hidden>Download previous save</button></section>
+<section><h2>Bring a journey here</h2><p>Choose a __GAME__ save file, check the journey, then import it. Your existing save will be kept as a backup.</p>
+<input id="file" type="file" accept=".json,application/json" aria-label="Choose a __GAME__ save file">
+<p id="candidate"></p><button id="import" disabled>Import this journey</button></section>
+<p id="status" role="status" aria-live="polite"></p>
+<small>Saves belong to this browser and website. Importing here does not change a save on another website. After importing, reload the game and choose Continue.</small>
+<script>
+'use strict';
+const KEY='__SAVE_KEY__', BACKUP='__BACKUP_KEY__'; let candidate=null;
+const status=document.getElementById('status'), pick=document.getElementById('file'), apply=document.getElementById('import');
+function validSave(d){
+  const object=x=>x && typeof x==='object' && !Array.isArray(x);
+  const finite=x=>typeof x==='number' && Number.isFinite(x) && x>=0;
+  const strings=x=>Array.isArray(x) && x.every(v=>typeof v==='string' && /^[a-z0-9_]+$/i.test(v));
+  // version 3 only (job fw-F3b, Ash 28 Oct 2026: only the new format): every system's state is in d.sys; older saves are not supported
+  if(!object(d) || d.v!==3 || !object(d.hero) || !object(d.f) || !object(d.inv) || !object(d.sys)) return false;
+  if(!Object.values(d.sys).every(object)) return false;
+  const h=d.hero;
+  if(!Number.isInteger(h.lv) || h.lv<1 || h.lv>99 || !['xp','hp','ki','mon'].every(k=>finite(h[k]))) return false;
+  if(!strings(h.weapons) || !strings(h.armors) || !strings(h.techs) || typeof h.weapon!=='string' || typeof h.armor!=='string') return false;
+  if(!Object.entries(d.inv).every(([k,v])=>/^[a-z0-9_]+$/i.test(k)&&finite(v))) return false;
+  const p=d.sys.party; if(p!=null && (!object(p.allies) || !strings(p.active))) return false;
+  return !JSON.stringify(d).match(/"(?:__proto__|prototype|constructor)"\s*:/);
+}
+function download(key,name){
+  try{
+    const raw=localStorage.getItem(key); if(!raw){status.textContent='No saved journey found here yet. Save in the game first.';return;}
+    const url=URL.createObjectURL(new Blob([raw],{type:'application/json'})),a=document.createElement('a');
+    a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='Your save file is ready.';
+  }catch(e){status.textContent='This browser did not allow access to saved games.';}
+}
+document.getElementById('download').onclick=()=>download(KEY,'__GAMEID__-save.json');
+const backup=document.getElementById('backup');
+try{backup.hidden=!localStorage.getItem(BACKUP);}catch(e){}
+backup.onclick=()=>download(BACKUP,'__GAMEID__-previous-save.json');
+pick.onchange=async()=>{
+  candidate=null;apply.disabled=true;document.getElementById('candidate').textContent='';status.textContent='';
+  try{
+    const f=pick.files[0];if(!f)return;if(f.size>2*1024*1024)throw new Error('Choose a __GAME__ save file smaller than 2 MB.');
+    const d=JSON.parse(await f.text());if(!validSave(d))throw new Error('That file is not a supported __GAME__ saved journey.');
+    candidate=d;document.getElementById('candidate').textContent='__HERO__ — Level '+d.hero.lv+' · '+d.hero.mon+' __CURRENCY__';apply.disabled=false;
+  }catch(e){status.textContent=e instanceof SyntaxError?'That file is not readable JSON. Choose a __GAME__ save file.':e.message;}
+};
+apply.onclick=()=>{
+  if(!candidate)return;
+  try{
+    const old=localStorage.getItem(KEY);if(old)localStorage.setItem(BACKUP,old);
+    localStorage.setItem(KEY,JSON.stringify(candidate));backup.hidden=!old;candidate=null;apply.disabled=true;
+    status.textContent='Journey imported. Reload the game and choose Continue.';
+  }catch(e){status.textContent='The save could not be stored. Your existing journey has not been replaced.';}
+};
+</script></body></html>

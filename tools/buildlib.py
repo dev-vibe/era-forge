@@ -12,8 +12,10 @@ A game with its own page builder names it in eraforge.json `build` (Ronin: its t
 the game's folder with the same arguments, and it imports the helpers below (`import buildlib as fw`). Any other game gets the framework's pages:
   pub_<id>/index.html   the fragment the site builder wraps        pub_<id>/test.html   a full document for Playwright
   pub_<id>/img/, audio/ the game's images and audio (hard links), and the theme's art as img/theme_<name>.<ext>
+  pub_<id>/tests.html, tests_fragment.html   the game's test page, written when its src/*.js registers test jumps (defineTestJump, core/01a_game.js
+                        section 9): the game with one button per jump (job fw-F7). A game's own page builder gets it from write_test_page().
 """
-import glob, json, os, shutil, sys
+import glob, json, os, re, shutil, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gamepaths
@@ -23,7 +25,7 @@ MIME = {'.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg'}
 AUDIO = {'.mp3': 'audio/mpeg', '.ogg': 'audio/ogg'}
 HEAD = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>'
 # game.json keys that are production notes for the tools, never read by the game at run time: not shipped in the page's GAME
-BUILD_ONLY_KEYS = ('_about', 'art', 'release')
+BUILD_ONLY_KEYS = ('_about', 'art', 'release', 'site')   # site: the hosted pages' names (build_site.py site_values)
 
 
 # ---- helpers (a game's own page builder uses these) ----
@@ -83,6 +85,65 @@ def name_of(game):
     return game.get('name') or game['title'].title()
 
 
+# ---- the hosted pages' names and the generated test page (job fw-F7) ----
+
+def site_names(game):
+    """The names the site's own files and the generated test page carry, from game.json (`site` may name any of them; none ships in a page):
+      testReady      the window flag a test page sets when its scenario is up (tests wait for it)                  default <ID>_TEST_READY
+      controlsKey    the sessionStorage key prefix that keeps a test page's settings over a restart                default <id>_test_controls_
+      saveBackupKey  the key the saved-games page keeps the previous journey under                                 default saveKey with _vN -> _backup_vN
+    """
+    site = game.get('site') or {}; gid = game['id']; save = game.get('saveKey') or gid + '_save_v1'
+    return {'testReady': site.get('testReady') or gid.upper() + '_TEST_READY', 'controlsKey': site.get('controlsKey') or gid + '_test_controls_',
+            'saveBackupKey': site.get('saveBackupKey') or (re.sub(r'_v(\d+)$', r'_backup_v\1', save) if re.search(r'_v\d+$', save) else save + '_backup'),
+            'saveKey': save}
+
+
+def has_test_jumps(gid):
+    """Does the game's own code (src/*.js, not the engine's) register test jumps?"""
+    return any('defineTestJump(' in open(f, encoding='utf-8').read() for f in glob.glob(os.path.join(gamepaths.game_dir(gid), 'src', '*.js')))
+
+
+# The test page: the game page plus a bar of one button per registered test jump (TEST_JUMPS, core/01a_game.js section 9), grouped. A button
+# reloads the page at ?jump=<id>, so every moment starts clean, and the engine starts the jump once the images have loaded. The page keeps its
+# own practice save slot (<id>_review_jumps), never the player's journey. __PLAY__ is the link back to the game, __READY__ the game's flag.
+TEST_BAR = """<style>.game-jumps .jump-group{flex-basis:100%;text-align:center;font:600 12px system-ui;color:#c8b890;margin-top:6px}</style>
+<div class="test-tools"><a class="chip" id="test-play" href="__PLAY__">Play from the title</a> <button class="chip" id="test-restart">Restart this test</button><p id="test-status" role="status">Loading…</p></div>
+<div id="jumps" class="jumps game-jumps"></div>
+<script>(() => {
+  const box = document.getElementById('jumps'), status = document.getElementById('test-status');
+  const want = new URL(location.href).searchParams.get('jump');
+  let group = null;
+  for (const j of testJumpList()) {
+    if (j.group !== group) { group = j.group; const h = document.createElement('span'); h.className = 'jump-group'; h.textContent = group; box.append(h); }
+    const b = document.createElement('button'); b.dataset.j = j.id; b.textContent = j.label; b.setAttribute('aria-pressed', String(j.id === want)); box.append(b);
+  }
+  box.addEventListener('click', e => { const b = e.target.closest('button[data-j]'); if (!b) return; const u = new URL(location.href); u.searchParams.set('jump', b.dataset.j); location.assign(u.href); });
+  document.getElementById('test-restart').addEventListener('click', () => location.reload());
+  const ready = () => {
+    if (!window.TEST_READY) { requestAnimationFrame(ready); return; }
+    const j = TEST_JUMPS[window.TEST_JUMP];
+    status.textContent = j ? 'Testing: ' + j.label + '. Z / Enter to interact. Practice save only.' : 'Choose a moment below the game. Practice save only.';
+    window.__READY__ = true;
+  };
+  requestAnimationFrame(ready);
+})();</script>
+"""
+
+
+def write_test_page(out, game, sh, js):
+    """Write <out>/tests_fragment.html (the page the site builder wraps; its Play link goes up one folder) and <out>/tests.html (a full document
+    for Playwright and for opening beside the game). `sh` is the shell with the game's name in it, `js` the page's one script."""
+    name, names = name_of(game), site_names(game)
+    tshell = sh.replace(f'<title>{name}</title>', f'<title>{name} · Test page</title>', 1)
+    j = tshell.index('</div>', tshell.index('<div class="frame">')) + len('</div>')
+    k = TEST_BAR.index('<script>'); bar_html, bar_js = TEST_BAR[:k], TEST_BAR[k:].replace('__READY__', names['testReady'])
+    tjs = 'window.GAME_SAVE_KEY=' + json.dumps(game['id'] + '_review_jumps') + ';\n' + js
+    def page(play): return tshell[:j] + bar_html.replace('__PLAY__', play) + tshell[j:] + '\n<script>\n' + tjs + '\n</script>\n' + bar_js
+    open(os.path.join(out, 'tests_fragment.html'), 'w', encoding='utf-8').write(page('../'))
+    open(os.path.join(out, 'tests.html'), 'w', encoding='utf-8').write(HEAD + page('test.html') + '</body></html>')
+
+
 # ---- the framework's pages for a game that has no page builder of its own ----
 
 def build(gid, out=None):
@@ -115,6 +176,7 @@ def build(gid, out=None):
     sh = shell(name_of(game), tid, gid)
     open(os.path.join(out, 'index.html'), 'w', encoding='utf-8').write(sh + '\n<script>\n' + js + '\n</script>\n')
     open(os.path.join(out, 'test.html'), 'w', encoding='utf-8').write(HEAD + sh + '\n<script>\n' + js + '\n</script>\n</body></html>')
+    if has_test_jumps(gid): write_test_page(out, game, sh, js)
     print(f'{os.path.basename(out)}: {len(gamepaths.source_files(gid))} code files, {len(imgs)} images, {len(auds)} audio, {len(scenes)} scenes,',
           os.path.getsize(os.path.join(out, 'index.html')), 'bytes')
     return out

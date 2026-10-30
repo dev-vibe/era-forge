@@ -9,8 +9,11 @@ Everything game-specific comes from the game:
                    copied from. kind "scenes" adds the scene browser's jump buttons; any other kind is the game's site hook.
   site hooks       (optional) a module in the config folder: `kinds = {kind: fn(fragment, entry) -> fragment}` for its own page kinds and
                    `extra(out, document) -> [routes]` for pages built another way (Ronin: the item moments and the title review)
-  tools/site/      the site's own files (test-tools.css, test-tools.js, saves.html as /saves/), from the game's folder
+  tools/site/      the site's own files (test-tools.css, test-tools.js, saves.html as /saves/): the game's own copy in its folder if it has one, else the
+                   framework's (tools/site/ here), whose slots are filled from game.json (site_values)
   eraforge.json    `host`: other games served at /games/<id>/ beside this one, each built with its own pages and save key
+  test jumps       a game whose src/*.js registers test jumps (defineTestJump, core/01a_game.js section 9) gets a generated test page, one button per
+                   jump: /games/<id>/test/ for a hosted game, /test/jumps/ for the site's own game (job fw-F7); a game with none gets no such page
 """
 from pathlib import Path
 import datetime
@@ -25,6 +28,7 @@ from html import escape
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gamepaths
+import buildlib as fw
 from make_animation_category_review import generate as build_animation_reviews
 
 FW = Path(gamepaths.FW)
@@ -61,6 +65,11 @@ for _gid, *_ in GAMES:
     if catalogue(_gid).get('tests'): raise SystemExit(f'build_site: the hosted game {_gid} lists test pages; only the main game\'s catalogue hosts test pages so far')
 
 
+def test_pages():
+    """The hosted games that have a generated test page (built by game_site)."""
+    return [g[0] for g in GAMES if (OUT/'games'/g[0]/'test'/'index.html').is_file()]
+
+
 def run(*args):
     subprocess.run(args, cwd=ROOT, env=gamepaths.tool_env(GID), check=True)
 
@@ -89,9 +98,12 @@ def document(fragment, review=None, category=None):
 
 
 def test_hub():
-    games = ''.join(f'<a class="test-card game-card" href="/games/{gid}/"><h2>{escape(title)}</h2><p>{escape(note)}</p><span>Play →</span></a>' for gid,title,note in GAMES)
+    games = ''.join(f'<a class="test-card game-card" href="/games/{gid}/"><h2>{escape(title)}</h2><p>{escape(note)}</p><span>Play →</span></a>'
+                    + (f'<a class="test-card game-card" href="/games/{gid}/test/"><h2>{escape(title)} · test page</h2><p>One button per test jump: start straight at any scene, cutscene, minigame or fight. Its own practice save.</p><span>Open test page →</span></a>' if gid in test_pages() else '')
+                    for gid,title,note in GAMES)
     games = '<h2>Other games</h2><p>Built on the same engine from their own folders; each keeps its own save.</p><div class="test-grid">'+games+'</div>' if games else ''
-    cards = ''.join(f'<a class="test-card" href="/test/{slug}/"><h2>{escape(title)}</h2><p>{escape(note)}</p><span>Open test →</span></a>' for slug,title,note,*_ in TESTS)
+    jumps = f'<a class="test-card" href="/test/jumps/"><h2>{escape(NAME)} · test jumps</h2><p>One button per registered test jump: start straight at any scene, cutscene, minigame or fight.</p><span>Open test →</span></a>' if (OUT/'test/jumps/index.html').is_file() else ''
+    cards = jumps + ''.join(f'<a class="test-card" href="/test/{slug}/"><h2>{escape(title)}</h2><p>{escape(note)}</p><span>Open test →</span></a>' for slug,title,note,*_ in TESTS)
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escape(NAME)+' · Test pages</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/test-tools.css"></head><body class="test-hub"><main><a href="/">← Back to the game</a><p class="eyebrow">'+escape(NAME.upper())+' · DEVELOPMENT</p><h1>Test pages</h1><p>Choose a test, then use the buttons below the game to jump to a moment. Each page has its own practice save; your main journey stays safe.</p><p><a href="/test/animations/">Animation test sheets — playable motion by category</a></p><div class="test-grid">'+cards+'</div>'+games+'</main></body></html>'
 
 
@@ -107,6 +119,13 @@ def game_site(gid):
     dest.mkdir(parents=True, exist_ok=True)
     (dest/'index.html').write_text('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         + fragment[:split] + '<link rel="stylesheet" href="/test-tools.css"></head><body>' + fragment[split:] + nav + '</body></html>', encoding='utf-8')
+    if (src/'tests_fragment.html').is_file():   # job fw-F7: the game registers test jumps; its test page is at /games/<id>/test/ (relative paths one folder up)
+        test = (src/'tests_fragment.html').read_text(encoding='utf-8').replace('"img/', '"../img/').replace('"audio/', '"../audio/')
+        cut = test.index('<div class="frame">')
+        tnav = f'<nav class="host-nav" aria-label="Pages"><a href="/games/{gid}/">Play</a> · <a href="/games/{gid}/test/">Test page</a> · <a href="/test/">All test pages</a> · <a href="/">{escape(NAME)}</a></nav>'
+        (dest/'test').mkdir(exist_ok=True)
+        (dest/'test'/'index.html').write_text('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+            + test[:cut] + '<link rel="stylesheet" href="/test-tools.css"></head><body>' + test[cut:] + tnav + '</body></html>', encoding='utf-8')
 
 
 def scene_browser(fragment, scene):
@@ -129,10 +148,26 @@ def scene_browser(fragment, scene):
     return fragment.replace(title, f'<title>{NAME} Scene Browser</title>', 1) + script
 
 
+def site_values():
+    """What the framework's site files (tools/site/) say about this game, all from game.json: the slots in their text. A game can name some of
+    them in game.json `site` (a build-only key: no page ships it; buildlib.site_names lists them with their defaults)."""
+    g = gamepaths.game_json(GID); names = fw.site_names(g)
+    return {'__GAME__': NAME, '__GAMEID__': g.get('id') or GID, '__HERO__': (g.get('hero') or {}).get('name', 'The hero'),
+            '__CURRENCY__': ((g.get('currency') or {}).get('label') or 'coin').lower(), '__SAVE_KEY__': names['saveKey'],
+            '__BACKUP_KEY__': names['saveBackupKey'], '__TEST_READY__': names['testReady'], '__CONTROLS_KEY__': names['controlsKey']}
+
+
 def site_file(name):
-    """A file of the site's own (tools/site/<name>), from the game's folder."""
-    p = ROOT/'tools'/'site'/name
-    return p if p.is_file() else None
+    """A file of the site's own as bytes: the game's (tools/site/<name> in its folder, copied as it is), else the framework's, with the
+    game's names in its slots (site_values). None when neither exists."""
+    own = ROOT/'tools'/'site'/name
+    if own.is_file(): return own.read_bytes()
+    base = FW/'tools'/'site'/name
+    if not base.is_file(): return None
+    text = base.read_bytes().decode('utf-8')
+    for slot, value in site_values().items(): text = text.replace(slot, value)
+    assert not re.search(r'__[A-Z]+__', text), f'a slot is left in {name}'
+    return text.encode('utf-8')
 
 
 def main():
@@ -167,15 +202,19 @@ def main():
             if not (HOOKS and kind in getattr(HOOKS, 'kinds', {})): raise SystemExit(f'build_site: test page kind {kind!r} needs the game\'s site hook (catalogue.json siteHooks)')
             fragment = HOOKS.kinds[kind](fragment, kinds[category])
         target.write_text(document(fragment, review, category), encoding='utf-8')
-    (OUT/'test/index.html').write_text(test_hub(), encoding='utf-8')
+    jump_page = ROOT/pub/'tests_fragment.html'   # job fw-F7: the site's own game registers test jumps and its builder wrote the page
+    if jump_page.is_file():
+        (OUT/'test/jumps').mkdir(parents=True, exist_ok=True)
+        (OUT/'test/jumps/index.html').write_text(document(jump_page.read_text(encoding='utf-8').replace('id="test-play" href="../"', 'id="test-play" href="/"')), encoding='utf-8')
     for gid, *_ in GAMES: game_site(gid)
+    (OUT/'test/index.html').write_text(test_hub(), encoding='utf-8')
     animation_catalog = build_animation_reviews(OUT/'test/animations')
     extra = HOOKS.extra(OUT, document) if HOOKS and hasattr(HOOKS, 'extra') else []
     for name in ('test-tools.css', 'test-tools.js'):
-        if site_file(name): shutil.copy2(site_file(name), OUT/name)
+        if site_file(name): (OUT/name).write_bytes(site_file(name))
     if site_file('saves.html'):
         (OUT/'saves').mkdir()
-        shutil.copy2(site_file('saves.html'), OUT/'saves/index.html')
+        (OUT/'saves/index.html').write_bytes(site_file('saves.html'))
     try:
         commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
         branch=subprocess.check_output(['git','branch','--show-current'],cwd=ROOT,text=True).strip()
@@ -183,7 +222,7 @@ def main():
     info={'commit':os.getenv('VERCEL_GIT_COMMIT_SHA',commit), 'branch':os.getenv('VERCEL_GIT_COMMIT_REF',branch),
           'builtAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
           'framework':framework_version(),
-          'pages':['/','/test/']+extra+['/'+p['dest']+'/' for p in CAT.get('extraPages', [])]+['/test/'+t[0]+'/' for t in TESTS]+['/review/'+key+'/' for key in [t['alias'] for t in CAT['tests'] if 'alias' in t]]+(['/saves/'] if site_file('saves.html') else [])+['/test/animations/']+['/test/animations/'+slug+'/' for slug in animation_catalog['categories']]+(['/test/animations/inserts/'] if (OUT/'test/animations/inserts').is_dir() else [])+['/games/'+g[0]+'/' for g in GAMES]}
+          'pages':['/','/test/']+extra+['/'+p['dest']+'/' for p in CAT.get('extraPages', [])]+['/test/'+t[0]+'/' for t in TESTS]+['/review/'+key+'/' for key in [t['alias'] for t in CAT['tests'] if 'alias' in t]]+(['/saves/'] if site_file('saves.html') else [])+['/test/animations/']+['/test/animations/'+slug+'/' for slug in animation_catalog['categories']]+(['/test/animations/inserts/'] if (OUT/'test/animations/inserts').is_dir() else [])+(['/test/jumps/'] if (OUT/'test/jumps/index.html').is_file() else [])+[p for g in GAMES for p in (['/games/'+g[0]+'/'] + (['/games/'+g[0]+'/test/'] if g[0] in test_pages() else []))]}
     (OUT/'build.json').write_text(json.dumps(info,indent=2)+'\n',encoding='utf-8')
     (OUT/'robots.txt').write_text('User-agent: *\nDisallow: /test/\nDisallow: /review/\nDisallow: /saves/\nDisallow: /games/\n',encoding='utf-8')
     print('Static hosting build:',OUT,info['commit'],flush=True)

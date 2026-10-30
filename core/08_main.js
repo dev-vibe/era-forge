@@ -206,6 +206,8 @@ function boot(data) {
 function boot2(data) {
   window.TEST_READY = true;   // Job tests-2: every image has loaded (or failed: window.ASSET_FAIL lists them) and the title is about to run
   titleRefresh();
+  const jump = new URLSearchParams(location.search).get('jump');   // job fw-F7: ?jump=<id> starts a registered test jump (01a_game.js section 9)
+  if (jump && TEST_JUMPS[jump] && testJump(jump)) { requestAnimationFrame(loop); return; }
   if (gameHook('boot', data)) { requestAnimationFrame(loop); return; }   // the game's own test pages and starts (e.g. its dance and boss test pages)
   if (window.MINI_TEST) { miniTestBoot(window.MINI_TEST); requestAnimationFrame(loop); return; }   // Job 16a minigame test page (make_mini_page.py)
   if (window.SCENE_TEST) { const t = GAME.sceneTest || {}; G.f = Object.assign({}, t.flags); G.hero = newHero(); G.inv = Object.assign({}, t.inv); enterScene(window.SCENE_TEST); requestAnimationFrame(loop); return; }   // game.json sceneTest: the flags and items a scene test page starts with
