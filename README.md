@@ -27,10 +27,10 @@ bin/           the npm command (`eraforge`)
 
 ## How a game pulls it in
 
-A game is its own repo with the framework as a pinned npm package from a git tag:
+A game is its own repo with the framework as an npm package pinned to a release commit (no tags: the commit is the version):
 
 ```json
-"dependencies": { "eraforge": "github:dev-vibe/era-forge#v0.1.0" }
+"dependencies": { "eraforge": "github:dev-vibe/era-forge#<release commit sha>" }
 ```
 
 `npm ci` installs it in `node_modules/eraforge` (agents can read the pinned source there). Then, from the game's folder:
@@ -47,7 +47,7 @@ The tools are Python 3.10+ (Pillow, NumPy, OpenCV, Playwright where needed); the
 
 **Local co-development:** `FW_PATH=../era-forge npx eraforge build` (or the game's own entry points, e.g. Ronin's
 `FW_PATH=../era-forge python3 build.py`) runs a framework checkout instead of the installed package, so one change can be tried on the
-game before it is tagged. No git submodules.
+game before it is released. No git submodules.
 
 ### What a game supplies
 
@@ -64,7 +64,7 @@ game before it is tagged. No git submodules.
 
 ## The release gate
 
-GitHub Actions is off, so the gate is local and is run **before every tag**, from a clean checkout of the commit to be tagged:
+GitHub Actions is off, so the gate is local and is run **before every release**, from a clean checkout of the commit to be released:
 
 ```text
 npm test                                   # = npx eraforge test all, in this checkout (the game is sample-game/):
@@ -75,12 +75,11 @@ npm test                                   # = npx eraforge test all, in this ch
                                            #                     the yoke, the end card, the Chronicle, a replay, a lost fight
 ```
 
-All three must pass. A release that changes the engine is also tried on each game before it is tagged, with `FW_PATH` pointing at the
+All three must pass. A release that changes the engine is also tried on each game before it is released, with `FW_PATH` pointing at the
 checkout (Ronin: `FW_PATH=../era-forge python3 run_tests.py all hosting_test.py test_hub_test.py`). A game never has to be green for a
 framework release, but a break found there is fixed first.
 
-**Releasing:** bump `version` in `package.json`, add its section to `CHANGELOG.md` (what a game must change), run the gate, commit, then
-`git tag v<version> && git push origin main v<version>`. Games move to it by bumping their pin (a job of its own).
+**Releasing:** bump `version` in `package.json`, add its section to `CHANGELOG.md` (what a game must change, and the release's commit once pushed), run the gate, commit and push `main`. The pushed commit is the release: games move to it by pinning its full sha (`github:dev-vibe/era-forge#<sha>`; a job of its own).
 
 ## Conventions every game keeps
 

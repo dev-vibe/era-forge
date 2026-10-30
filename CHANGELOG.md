@@ -3,7 +3,7 @@
 Each release says what a game must change to upgrade. Upgrading is a job of its own: bump the pin in the game's `package.json`, apply the
 notes below, run the game's full test group.
 
-## 0.1.0 (29 Oct 2026)
+## 0.1.0 (29 Oct 2026, commit `878da00`)
 
 The first release: the engine, tools and test kit that Ronin was built on, moved out of the Ronin repo (Ronin job fw-F5; one initial commit,
 the history stays in the Ronin repo).
