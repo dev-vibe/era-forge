@@ -1,6 +1,6 @@
 {
   "name": "eraforge",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A framework for painted, story-led history games: engine core, systems, kits (top-down, turn battle, minigames), tools, a test kit and the agent playbooks.",
   "repository": { "type": "git", "url": "git+https://github.com/dev-vibe/era-forge.git" },
   "bin": { "eraforge": "bin/eraforge.js" },

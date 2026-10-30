@@ -158,6 +158,20 @@ function battleBackdrop() {
   if (pbg && B.opts.crop) { g.fillStyle = 'rgba(14,10,24,.18)'; g.fillRect(0, 0, W * D, H * D); }
   B.bgc = c; return c;
 }
+// Water polish (30 Oct 2026): a fight that started in a painted scene uses a still crop of that painting, so its water stopped dead. The
+// scene's water loops (05c drawWaterLoops) are drawn over the crop the way the backdrop is made: same place, darkened by the same wash,
+// softened by the same blur.
+function drawBattleWater(sx, sy) {
+  const o = B.opts; if (!o.crop || typeof SC !== 'object' || o.paintImg !== SC.img || !(SC.wl || []).length || typeof drawWaterLoops !== 'function') return;
+  const iw = SC.img.width / SC.ww, k = o.crop, cx = k[0] / iw, cy = k[1] / iw, kx = W / (k[2] / iw), ky = H / (k[3] / iw);
+  const [c, g] = B.wc || (B.wc = mk(W * D, H * D));
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, W * D, H * D); g.imageSmoothingEnabled = false;
+  g.setTransform(D * kx, 0, 0, D * ky, -cx * D * kx, -cy * D * ky);
+  drawWaterLoops(cx, cy, iw, g);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(14,10,24,.18)'; g.fillRect(0, 0, W * D, H * D); g.globalCompositeOperation = 'source-over';
+  L.save(); L.imageSmoothingEnabled = true; try { L.filter = 'blur(0.6px) saturate(0.9) brightness(0.92)'; } catch (e) {}
+  L.drawImage(c, sx, sy, W, H); L.restore();
+}
 // the standoff's version of the backdrop (e.g. an ink wash on washi), made once per fight by the theme
 function battleInk() { return B.bgInk || (B.bgInk = themeUI('battleBackdrop')(battleBackdrop())); }
 
@@ -171,6 +185,7 @@ function drawBattle() {
   else {
     L.imageSmoothingEnabled = true;
     L.drawImage(battleBackdrop(), sx, sy, W, H);
+    drawBattleWater(sx, sy);
     if (B.ink > 0) { L.globalAlpha = B.ink; L.drawImage(battleInk(), sx, sy, W, H); L.globalAlpha = 1; }
     L.imageSmoothingEnabled = false;
     if (!B.opts.paintImg && !B.opts.paint) drawBattleAmbient(B.bg, B.t);

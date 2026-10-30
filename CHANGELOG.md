@@ -10,8 +10,29 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.2.1 (30 Oct 2026) | `this commit` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.2.1 (30 Oct 2026)
+
+A game's water polish job (Ronin job 9). Engine only.
+
+### What a game must change
+
+Nothing. A game with still water that has no loop may add `reflect` polygons to its scene JSON to get the hero's reflection there.
+
+### What changed
+
+- **Water behind fights** (`kits/battle-turn/07b_battle_draw.js` `drawBattleWater`): a fight started in a painted scene uses a still
+  crop of that painting as its backdrop, so its water stopped dead. The scene's water loops are now drawn over the crop, darkened and
+  blurred the same way as the backdrop. `drawWaterLoops(cx, cy, ix, ctx)` takes the context to draw into (default `L`).
+- **The hero's reflection** (`kits/topdown/05c_scene.js` `drawReflection`): mirrored under his feet, only on water, swaying a little and
+  fading downwards; not mid-hop and not while a game's `hero` layer draws him in a story pose. Water = the loops' own masks (where the
+  clip moves) plus a scene JSON's new optional `reflect` polygons (painting px) for still water that has no loop. Tuning: `REFLECT`.
+- **Rings round his feet in moving water** (`drawWaterRings`, backdrop layer `water-rings`, order 210): one every few px of walking, a
+  slow ring while he stands; only on a loop's mask (a game's own wading rings are untouched).
+- `waterMask()` / `waterAt(x, y, 'loop' | 'all')`: the per-scene water mask behind both, in scene units.
 
 ## 0.2.0 (30 Oct 2026, commit `9e7f08b`)
 

@@ -26,6 +26,7 @@ function enterScene(id, at) {
   Object.assign(SC, { def, id, k, img, occ: [], leaves: [], ww, wh, water: def.water || [] });
   // Job 9c: looping water video clips baked to sprite sheets (make_water.py): scene JSON `waterLoops`, drawn right over the painting
   SC.wl = (def.waterLoops || []).map(e => ({ e, sheet: assetImg(e.src), mask: assetImg(e.mask), c: null, g: null, fi: -1 })).filter(w => w.sheet && w.mask);
+  SC.wm = undefined; WATER_RINGS.list = [];   // the reflection / ripple mask is made again for each scene (waterMask)
   // walkable mask at world (logical) resolution
   const [mc, mg] = mk(ww, wh); mg.fillStyle = '#fff';
   for (const poly of def.walk) { mg.beginPath(); poly.forEach(([x, y], i) => i ? mg.lineTo(x * k, y * k) : mg.moveTo(x * k, y * k)); mg.closePath(); mg.fill(); }
@@ -406,6 +407,7 @@ function drawScene() {
   // entry is asked (some keep their own clocks), the first draw function wins; otherwise the hop-aware walking sprite
   let drawHero = null;
   for (const d of layerList('hero')) { const f = d.fn(h, hk); if (f && !drawHero) drawHero = f; }
+  if (!drawHero && !SC.hop) drawReflection(s, hx, h.y + 1 - hbob, sw, sh);   // his reflection on water below his feet (not mid-hop, not in a story pose)
   drawHero = drawHero || drawHeroHop;
   const drawOcc = o => { if (firstLayer('occluder', L, o, 0, 0)) return; if (o.dr) L.drawImage(o.dr.img, o.dr.sx, o.dr.sy, o.dr.sw, o.dr.sh, o.dr.dx, o.dr.dy, o.dr.dw, o.dr.dh); else L.drawImage(o.c, o.x, o.y, o.w, o.h); };
   const acts = [{ y: h.y, f: drawHero }];
@@ -478,7 +480,7 @@ function drawScene() {
 // make_water.py cut from the Seedance clips; it is drawn nearest-neighbour up to the painting's pixel size, cut by its alpha mask (where the
 // clip really moves, inside the traced water polygon) and laid over the painting and UNDER the actors and the foreground cut-outs, so a
 // bridge, a tree or the hero's feet still cover it. e.x/y/w/h are in painting image px. The dusk / morning grade is applied later over all.
-function drawWaterLoops(cx, cy, ix) {
+function drawWaterLoops(cx, cy, ix, ctx = L) {   // ctx: the battle draws them into its own canvas (07b drawBattleWater)
   for (const w of SC.wl || []) {
     const e = w.e, dx = e.x / ix, dy = e.y / ix, dw = e.w / ix, dh = e.h / ix;
     if (dx >= cx + W || dx + dw <= cx || dy >= cy + H || dy + dh <= cy) continue;   // off screen
@@ -491,8 +493,61 @@ function drawWaterLoops(cx, cy, ix) {
       g.globalCompositeOperation = 'destination-in'; g.drawImage(w.mask, 0, 0);
       g.globalCompositeOperation = 'source-over'; w.fi = fi;
     }
-    L.drawImage(w.c, dx, dy, dw, dh);
+    ctx.drawImage(w.c, dx, dy, dw, dh);
   }
+}
+// Water polish (30 Oct 2026): where the hero's reflection shows and where his feet make rings. The water loops' own masks (where the clip
+// really moves, so rock and bank stay dry) plus the scene JSON's `reflect` polygons (still water that has no loop, painting px), drawn once
+// per scene into a canvas in scene units; `loop` / `all` are its alpha for quick lookups (rings only on moving water, reflections on both).
+function waterMask() {
+  if (SC.wm !== undefined) return SC.wm;
+  const polys = SC.def.reflect || [];
+  if (!(SC.wl || []).length && !polys.length) return (SC.wm = null);
+  const ix = SC.img.width / SC.ww, w = SC.ww, h = SC.wh, [c, g] = mk(w, h), alpha = () => { const a = g.getImageData(0, 0, w, h).data, m = new Uint8Array(w * h); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3]; return m; };
+  for (const l of SC.wl) g.drawImage(l.mask, l.e.x / ix, l.e.y / ix, l.e.w / ix, l.e.h / ix);
+  const loop = alpha(); g.fillStyle = '#fff';
+  for (const p of polys) { g.beginPath(); p.forEach(([x, y], i) => i ? g.lineTo(x * SC.k, y * SC.k) : g.moveTo(x * SC.k, y * SC.k)); g.closePath(); g.fill(); }
+  return (SC.wm = { c, w, h, loop, all: polys.length ? alpha() : loop });
+}
+const waterAt = (x, y, which = 'all') => { const M = waterMask(); x = Math.round(x); y = Math.round(y); return M && x >= 0 && y >= 0 && x < M.w && y < M.h ? M[which][y * M.w + x] : 0; };
+// the hero mirrored under his feet, only where there is water: rows of 1 scene px that sway a little more the further they are from his
+// feet, darker, fading out downwards. s = his sprite, drawn at (x, y, sw, sh); foot = the ground line
+const REFLECT = { alpha: 0.62, filter: 'brightness(0.86) saturate(0.9)', sway: 0.7 };
+function drawReflection(s, x, foot, sw, sh) {
+  const M = waterMask(); if (!M) return;
+  let hit = false;
+  for (let yy = Math.max(0, Math.floor(foot)); yy < Math.min(M.h, foot + sh * 0.7) && !hit; yy += 2) for (let xx = Math.max(0, Math.floor(x)); xx < Math.min(M.w, x + sw); xx += 2) if (M.all[yy * M.w + xx] > 40) { hit = true; break; }
+  if (!hit) return;
+  const tw = Math.ceil(sw * D), th = Math.ceil(sh * D), rows = Math.ceil(sh);
+  if (!SC.reflC || SC.reflC[0].width < tw || SC.reflC[0].height < th) SC.reflC = mk(Math.max(tw, 96), Math.max(th, 160));
+  const [c, g] = SC.reflC; g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, c.width, c.height); g.imageSmoothingEnabled = false;
+  for (let r = 0; r < rows; r++) {
+    const u = r / rows, sy = s.height * (1 - (r + 1) / rows), off = Math.sin(frame * 0.09 + r * 0.55) * REFLECT.sway * D * (0.3 + u);
+    g.drawImage(s, 0, sy, s.width, s.height / rows, Math.round(off), r * D, tw, D);
+  }
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(M.c, x, foot, sw, sh, 0, 0, tw, th);
+  const fade = g.createLinearGradient(0, 0, 0, th); fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.8, 'rgba(0,0,0,0.7)'); fade.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = fade; g.fillRect(0, 0, tw, th); g.globalCompositeOperation = 'source-over';
+  L.save(); L.globalAlpha = REFLECT.alpha; try { L.filter = REFLECT.filter; } catch (e) {}
+  L.drawImage(c, 0, 0, tw, th, x, foot, sw, sh); L.restore();
+}
+// rings where the hero's feet are in moving water (a loop's mask): one every few px of walking, a slow endless ring while he stands
+const WATER_RINGS = { list: [], f: -1, d: 0, x: 0, y: 0, s: 1 };
+function drawWaterRings() {
+  const h = SC.hero, R = WATER_RINGS; if (!h || !waterMask()) return;
+  const wet = !SC.hop && waterAt(h.x, h.y, 'loop') > 60;
+  if (R.f !== frame) {
+    R.f = frame; const dd = Math.hypot(h.x - R.x, h.y - R.y); R.x = h.x; R.y = h.y;
+    if (wet && dd < 40) { R.d += dd; if (R.d >= 8) { R.d = 0; R.s = -R.s; R.list.push({ x: h.x + R.s * 3, y: h.y - 1, t: 0 }); } } else R.d = 0;
+    for (const r of R.list) r.t++; R.list = R.list.filter(r => r.t < 46);
+  }
+  const ring = (x, y, rx, a) => {
+    if (a <= 0.01) return;
+    L.beginPath(); L.ellipse(x, y, rx, rx * 0.36, 0, 0, Math.PI * 2); L.lineWidth = 1.1; L.strokeStyle = `rgba(236,242,250,${Math.min(1, a * 1.15)})`; L.stroke();
+    L.beginPath(); L.ellipse(x, y + 0.9, rx, rx * 0.36, 0, 0, Math.PI * 2); L.strokeStyle = `rgba(40,34,44,${a * 0.5})`; L.stroke();
+  };
+  if (wet && !h.moving) for (let i = 0; i < 3; i++) { const u = ((frame * 0.55 + i * 52) % 156) / 156; ring(h.x, h.y - 1, 9 + u * 12, Math.pow(1 - u, 1.3) * 0.7); }
+  for (const r of R.list) { const u = r.t / 46; ring(r.x, r.y, 2.5 + u * 14.5, (1 - u) * 0.9); }
 }
 function drawSceneLayers(cx, cy) {
   const k = SC.k, def = SC.def;
@@ -544,6 +599,7 @@ window.addEventListener('keydown', e => {
 // Job fw-F3a: the kit's own layers. Job 9c: animated water over the painting, under the actors and the cut-outs; Job 8d: a faint
 // sparkle on a jump's launch spot until it has been used once
 defineLayer('backdrop', 'water', { owner: 'kit:topdown', order: 200, fn: (cx, cy, ix) => drawWaterLoops(cx, cy, ix) });
+defineLayer('backdrop', 'water-rings', { owner: 'kit:topdown', order: 210, fn: () => drawWaterRings() });   // rings round his feet in moving water
 defineLayer('actors', 'jumpHints', { owner: 'kit:topdown', order: 300, fn: acts => {
   for (const j of scJumps()) if (j.hint && !G.f['jump_' + j.id] && (j.pad == null ? -1 : j.pad) === SC.padOn && !SC.hop) {
     const x = j.hint[0] * SC.k, y = j.hint[1] * SC.k;
