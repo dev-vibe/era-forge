@@ -10,10 +10,10 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
-| 0.2.0 (30 Oct 2026) | `<set when released>` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
+| 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
 
-## 0.2.0 (30 Oct 2026, commit `<set when released>`)
+## 0.2.0 (30 Oct 2026, commit `9e7f08b`)
 
 Ronin job fw-F7: the tools that were still Ronin's own move into the framework, with the game's names read from its files; test jumps
 and a generated test page become part of the framework; the upgrade procedure is written down.
