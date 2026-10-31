@@ -10,7 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
-| 0.2.3 (31 Oct 2026) | `PENDING` | no | the water sparkle takes a painted mask (and match, density, strength, sun, loop), so any painting can sparkle only on its water, seamlessly |
+| 0.2.3 (31 Oct 2026) | `PENDING` | no | the water sparkle takes a painted mask (and match, density, strength, sun, loop, speed), so any painting can sparkle only on its water, seamlessly |
 | 0.2.2 (31 Oct 2026) | `f0b4e66fb90bf31e4ff609b10458fe276d750ca5` | no | a scene's `reflect` polygons fill even-odd, so a polygon inside another is a hole |
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
@@ -35,6 +35,7 @@ Nothing. A config without the new keys draws exactly as before (the far-plate de
     default .71).
   - `loop` (seconds): the sparkle repeats exactly after this long (the two wave speeds snap to whole cycles in it), so a recording
     loops without a jump. Default: free-running, as before.
+  - `speed` (multiplier on the two wave speeds, default 1): a calmer or livelier sparkle. With `loop`, use 11.75 / speed seconds.
 - `drawWaterShimmer` skips a missing image. A game draws it wherever its painting is drawn (Ronin: its road route's `drawStop`).
 
 ## 0.2.2 (31 Oct 2026, commit `f0b4e66`)

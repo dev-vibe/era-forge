@@ -10,6 +10,8 @@
 //   sun       x of the sunlit column as a fraction of the width, or null for none (default .71)
 //   loop      seconds: the sparkle repeats exactly after this long, so a recording or a long look has no seam (the two wave speeds are
 //             snapped to whole cycles in it; 11.75 keeps them within 1% of the free-running speeds). Default: free-running, no repeat.
+//   speed     wave speed multiplier (default 1; .65 = a calmer sparkle). With `loop`, give a loop of 11.75 / speed seconds to keep the
+//             two waves' 5:4 cycle count.
 //   enabled   false turns it off
 const WATER_SHIMMER = new WeakMap();
 function waterShimmerPlate(im, config) {
@@ -45,10 +47,11 @@ function waterShimmerPlate(im, config) {
     }
     const [c, g] = mk(w, h);
     // Wave speeds (rad/s). With `loop`, whole cycles in loopTicks 20 Hz steps: frame loopTicks*3 looks exactly like frame 0.
-    let w1 = 2.7, w2 = 2.13, loopTicks = 0;
+    const speed = config.speed > 0 ? config.speed : 1;
+    let w1 = 2.7 * speed, w2 = 2.13 * speed, loopTicks = 0;
     if (config.loop > 0) {
       loopTicks = Math.max(1, Math.round(config.loop * 20)); const P = loopTicks / 20;
-      w1 = Math.PI * 2 * Math.max(1, Math.round(2.7 * P / (Math.PI * 2))) / P; w2 = Math.PI * 2 * Math.max(1, Math.round(2.13 * P / (Math.PI * 2))) / P;
+      w1 = Math.PI * 2 * Math.max(1, Math.round(w1 * P / (Math.PI * 2))) / P; w2 = Math.PI * 2 * Math.max(1, Math.round(w2 * P / (Math.PI * 2))) / P;
     }
     q = { c, g, glints, clip, w1, w2, loopTicks, top: Math.ceil(h*top), tick: -1 }; WATER_SHIMMER.set(im, q);
   }
