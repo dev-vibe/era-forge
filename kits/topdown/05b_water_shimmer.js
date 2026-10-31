@@ -8,6 +8,8 @@
 //   density   share of the qualifying pixels that carry a glint (default .045)
 //   strength  alpha multiplier (default 1; lower for a subtler sparkle)
 //   sun       x of the sunlit column as a fraction of the width, or null for none (default .71)
+//   loop      seconds: the sparkle repeats exactly after this long, so a recording or a long look has no seam (the two wave speeds are
+//             snapped to whole cycles in it; 11.75 keeps them within 1% of the free-running speeds). Default: free-running, no repeat.
 //   enabled   false turns it off
 const WATER_SHIMMER = new WeakMap();
 function waterShimmerPlate(im, config) {
@@ -42,14 +44,20 @@ function waterShimmerPlate(im, config) {
       glints.push({ x, y, depth, edge, sun, sp: Math.sin(p), cp: Math.cos(p), sq: Math.sin(r), cq: Math.cos(r), phase: hash(x, y, 9207)*Math.PI*2 });
     }
     const [c, g] = mk(w, h);
-    q = { c, g, glints, clip, top: Math.ceil(h*top), tick: -1 }; WATER_SHIMMER.set(im, q);
+    // Wave speeds (rad/s). With `loop`, whole cycles in loopTicks 20 Hz steps: frame loopTicks*3 looks exactly like frame 0.
+    let w1 = 2.7, w2 = 2.13, loopTicks = 0;
+    if (config.loop > 0) {
+      loopTicks = Math.max(1, Math.round(config.loop * 20)); const P = loopTicks / 20;
+      w1 = Math.PI * 2 * Math.max(1, Math.round(2.7 * P / (Math.PI * 2))) / P; w2 = Math.PI * 2 * Math.max(1, Math.round(2.13 * P / (Math.PI * 2))) / P;
+    }
+    q = { c, g, glints, clip, w1, w2, loopTicks, top: Math.ceil(h*top), tick: -1 }; WATER_SHIMMER.set(im, q);
   }
   const tick = Math.floor(frame / 3); // 20 Hz, cached between lighting frames.
   if (tick !== q.tick) {
-    const t = tick / 20, g = q.g, w = q.c.width, h = q.c.height, strength = config.strength == null ? 1 : config.strength;
+    const t = (q.loopTicks ? tick % q.loopTicks : tick) / 20, g = q.g, w = q.c.width, h = q.c.height, strength = config.strength == null ? 1 : config.strength;
     g.clearRect(0, 0, w, h);
     // Only the light facets change. Never redraw or displace the source painting.
-    const a = Math.cos(t*2.7), b = Math.sin(t*2.7), c = Math.cos(t*2.13), d = Math.sin(t*2.13);
+    const a = Math.cos(t*q.w1), b = Math.sin(t*q.w1), c = Math.cos(t*q.w2), d = Math.sin(t*q.w2);
     for (const s of q.glints) {
       const wave = .5 + .29*(s.sp*a-s.cp*b) + .21*(s.sq*c+s.cq*d);
       const k = clamp((wave - .72) / .25, 0, 1), flash = k*k*(3-2*k);
