@@ -119,8 +119,10 @@ def catalog():
             clip['cell'] = [width//cols, height//rows]
             coverage.setdefault(name,set()).update(frames)
         for link in category.get('engineTests', []):
-            if not link['url'].startswith(('/test/', '/games/')) or '"' in link['url']:   # job fw-F6: a second game's page (/games/<id>/) counts as local
-                raise ValueError('Engine test must link to a local /test/ or /games/ route')
+            # job fw-F6: a second game's page (/games/<id>/) counts as local; 0.2.4: so does a review page (/review/<key>/, a game's
+            # extraPages), e.g. a review page with its own playback controls
+            if not link['url'].startswith(('/test/', '/games/', '/review/')) or '"' in link['url']:
+                raise ValueError('Engine test must link to a local /test/, /review/ or /games/ route')
     for name, (_,_,cells) in sheets.items():
         missing = set(range(cells))-coverage[name]
         if missing:
