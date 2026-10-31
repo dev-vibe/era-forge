@@ -10,10 +10,30 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.2.3 (31 Oct 2026) | `PENDING` | no | the water sparkle takes a painted mask (and match, density, strength, sun), so any painting can sparkle only on its water |
 | 0.2.2 (31 Oct 2026) | `f0b4e66fb90bf31e4ff609b10458fe276d750ca5` | no | a scene's `reflect` polygons fill even-odd, so a polygon inside another is a hole |
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.2.3 (31 Oct 2026, commit `PENDING`)
+
+Ronin job 12d-water-sparkle-cards: the Lake Biwa water sparkle (`kits/topdown/05b_water_shimmer.js`) on paintings that are not an
+all-water far plate (Ronin's road cards, with sky, bridges and shore around the water).
+
+### What a game must change
+
+Nothing. A config without the new keys draws exactly as before (the far-plate defaults are unchanged; Ronin's lakeshore test checks it).
+
+### What changed
+
+- `waterShimmerPlate(im, config)` / `drawWaterShimmer(im, config, x, y, w, h)` take new optional config keys:
+  - `mask`: the asset name of a painted water area (green or white on black, any size). Glints sit only on its pixels and the plate is
+    cut to it, so nothing spills past the water's edge. Nothing is drawn until the mask has loaded (`waterShimmerPlate` returns null).
+  - `match`: `'lake'` (default, the old rule: pale and medium blue/cyan) or `'cool'` (any pixel bluer than it is red, dark water too).
+  - `density` (default .045), `strength` (alpha multiplier, default 1), `sun` (x of the sunlit column as a fraction, `null` = none,
+    default .71).
+- `drawWaterShimmer` skips a missing image. A game draws it wherever its painting is drawn (Ronin: its road route's `drawStop`).
 
 ## 0.2.2 (31 Oct 2026, commit `f0b4e66`)
 
