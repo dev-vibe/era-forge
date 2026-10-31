@@ -498,7 +498,7 @@ function drawWaterLoops(cx, cy, ix, ctx = L) {   // ctx: the battle draws them i
 }
 // Water polish (30 Oct 2026): where the hero's reflection shows and where his feet make rings. The water loops' own masks (where the clip
 // really moves, so rock and bank stay dry) plus the scene JSON's `reflect` polygons (still water that has no loop, painting px), drawn once
-// per scene into a canvas in scene units; `loop` / `all` are its alpha for quick lookups (rings only on moving water, reflections on both).
+// per scene into a canvas in scene units (the polygons are one even-odd path, so a polygon inside another cuts a hole); `loop` / `all` are its alpha for quick lookups (rings only on moving water, reflections on both).
 function waterMask() {
   if (SC.wm !== undefined) return SC.wm;
   const polys = SC.def.reflect || [];
@@ -506,7 +506,8 @@ function waterMask() {
   const ix = SC.img.width / SC.ww, w = SC.ww, h = SC.wh, [c, g] = mk(w, h), alpha = () => { const a = g.getImageData(0, 0, w, h).data, m = new Uint8Array(w * h); for (let i = 0; i < m.length; i++) m[i] = a[i * 4 + 3]; return m; };
   for (const l of SC.wl) g.drawImage(l.mask, l.e.x / ix, l.e.y / ix, l.e.w / ix, l.e.h / ix);
   const loop = alpha(); g.fillStyle = '#fff';
-  for (const p of polys) { g.beginPath(); p.forEach(([x, y], i) => i ? g.lineTo(x * SC.k, y * SC.k) : g.moveTo(x * SC.k, y * SC.k)); g.closePath(); g.fill(); }
+  g.beginPath(); for (const p of polys) { p.forEach(([x, y], i) => i ? g.lineTo(x * SC.k, y * SC.k) : g.moveTo(x * SC.k, y * SC.k)); g.closePath(); }
+  g.fill('evenodd');   // one path, even-odd: a polygon inside another is a hole (a rock or a rice tuft standing in the water)
   return (SC.wm = { c, w, h, loop, all: polys.length ? alpha() : loop });
 }
 const waterAt = (x, y, which = 'all') => { const M = waterMask(); x = Math.round(x); y = Math.round(y); return M && x >= 0 && y >= 0 && x < M.w && y < M.h ? M[which][y * M.w + x] : 0; };
