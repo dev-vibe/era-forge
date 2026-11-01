@@ -10,7 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
-| 0.2.5 (1 Nov 2026) | `PENDING` | no (optional: `battleSpots`, `foeNpc`, `GAME.battle.heroK`) | a fight on its own scene zooms to the scene's scale, stands where the two sides met (scored placement), walks everyone onto their marks, draws the scene's sky layers |
+| 0.2.5 (1 Nov 2026) | `2f8bf8edecee8dcf590b0f0528a0e3e039184cbc` | no (optional: `battleSpots`, `foeNpc`, `GAME.battle.heroK`) | a fight on its own scene zooms to the scene's scale, stands where the two sides met (scored placement), walks everyone onto their marks, draws the scene's sky layers |
 | 0.2.4 (31 Oct 2026) | `f1bb9dedc41582b3c6baea2ae719f57e234113e0` | no | an animation category's engine-test link may point at a review page (`/review/<key>/`) |
 | 0.2.3 (31 Oct 2026) | `9e60c67f24a8adf671d04acb0610531c626e1353` | no | the water sparkle takes a painted mask (and match, density, strength, sun, loop, speed), so any painting can sparkle only on its water, seamlessly |
 | 0.2.2 (31 Oct 2026) | `f0b4e66fb90bf31e4ff609b10458fe276d750ca5` | no | a scene's `reflect` polygons fill even-odd, so a polygon inside another is a hole |
@@ -18,7 +18,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
 
-## 0.2.5 (1 Nov 2026, commit `PENDING`)
+## 0.2.5 (1 Nov 2026, commit `2f8bf8e`)
 
 Ronin job battle-place (Ash, 31 Oct 2026: "often the placement of characters/enemies in the screen are odd"). A fight on the painted
 scene it started on (`kits/battle-turn/07_battle.js` `battleStage`, `07b_battle_draw.js`):
