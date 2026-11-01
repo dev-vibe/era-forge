@@ -10,6 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.2.7 (1 Nov 2026) | `PENDING` | no | the battle spot editor's Save writes the spot into the game's own scene file (folder access, remembered; a download where a browser has none); "every fight in this scene" |
 | 0.2.6 (1 Nov 2026) | `64e4f7f25efcc08278af0008ebdf29a22cce2b38` | no | how a fight was placed (`battlePlacement()`: placed / spot / rules / fallback / fixed), the battle spot editor (07e), `opts.spot`, a spot's `view`; one-screen rooms keep the centred formation |
 | 0.2.5 (1 Nov 2026) | `2f8bf8edecee8dcf590b0f0528a0e3e039184cbc` | no (optional: `battleSpots`, `foeNpc`, `GAME.battle.heroK`) | a fight on its own scene zooms to the scene's scale, stands where the two sides met (scored placement), walks everyone onto their marks, draws the scene's sky layers |
 | 0.2.4 (31 Oct 2026) | `f1bb9dedc41582b3c6baea2ae719f57e234113e0` | no | an animation category's engine-test link may point at a review page (`/review/<key>/`) |
@@ -18,6 +19,25 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.2.7 (1 Nov 2026, commit `PENDING`)
+
+Ronin job battle-place. Ash, 1 Nov 2026: "i should just be able to save it in the editor, no?", then "save, but in a place apps normally
+save stuff. rememer, this needs to be solved for any user building games with this framework".
+
+- The battle spot editor's **Save** writes the spot into the game's own project files, `assets/game/<scene>.scene.json` `battleSpots`,
+  the way a desktop editor saves: the first Save asks for the game's folder through the browser's folder picker (File System Access),
+  checks the folder's `game.json` names this game (`GAME.id`), and the browser remembers the folder (IndexedDB `eraforge`, key
+  `project:<game id>`); later saves write straight there (the browser may ask once a session to allow editing). The file is read
+  fresh from disk and only `battleSpots` changes (the spot replaced by id in place, or added; removed after Use the rules here), written
+  in the layout the game's Python tools write (`json.dump`: `, ` and `: `, non-ASCII as `\u` escapes), so the diff is the spot.
+- A browser without folder access (Firefox, Safari) downloads the updated scene file instead, to put in `assets/game/`.
+- **every fight in this scene** (a checkbox) gives the spot an `r` covering the whole painting instead of `near`.
+- Then the file is committed like any other change: nothing goes to a server.
+
+### What a game must change
+
+Nothing. (The folder chosen must be the game's own, with its `game.json`; scene files live in `assets/game/`.)
 
 ## 0.2.6 (1 Nov 2026, commit `64e4f7f`)
 

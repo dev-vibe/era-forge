@@ -9,8 +9,13 @@
 //  map: green = a fighter can stand here, red = not: off the walk map, in another area, under the foreground layer). Each fighter's ring
 //  says whether its feet are on good ground. Try it writes the spot into the scene (in memory) and restages the fight from it; Use the
 //  rules drops the spot and restages by the rules; Copy JSON gives the scene file's battleSpots entry (scene px): { id, at, view, near
-//  (or r), party: [[x, y]...], foes: [[x, y]...] }. Done hands the fight back. Nothing is saved to disk: the JSON goes into
-//  assets/game/<scene>.scene.json `battleSpots` (a game's own content).
+//  (or r), party: [[x, y]...], foes: [[x, y]...] }. Done hands the fight back.
+//  Save (Ash, 1 Nov 2026: "save, but in a place apps normally save stuff ... this needs to be solved for any user building games with
+//  this framework") writes the spot into the game's own project files, assets/game/<scene>.scene.json `battleSpots`, the way a desktop
+//  editor saves: the first Save asks for the game's folder (the one with its game.json; checked against GAME.id) through the browser's
+//  folder picker, the browser remembers it (IndexedDB) and later saves go straight there; only `battleSpots` changes in the file (read
+//  fresh from disk, the spot replaced by id or added; dropped after Use the rules here). A browser without folder access (Firefox,
+//  Safari) downloads the updated scene file instead. Then commit the file as with any other change.
 //  A test page opens it (a game's battle review page puts a button for it); the game itself never does.
 // ============================================================
 const SPOT_EDIT = { on: false, sel: -1, drag: null, ground: true, groundKey: '', groundCv: null, panel: null, id: '', near: 200, r: null, when: null, rules: false };
@@ -95,6 +100,7 @@ function spotEditJSON() {
 }
 // Try it: the spot into the scene (in memory, replacing one with the same id) and the fight staged again from it
 function spotEditApply() {
+  SPOT_EDIT.rules = false;
   const sp = spotEditJSON(), list = SC.def.battleSpots || (SC.def.battleSpots = []), i = list.findIndex(s => s.id === sp.id);
   if (i >= 0) list[i] = sp; else list.push(sp);
   spotEditRestage(sp.id);
@@ -130,8 +136,10 @@ function spotEditPanel() {
   el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><b>Battle spot editor</b><span data-k="status"></span></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">Spot id <input data-k="id" value="${SPOT_EDIT.id}" style="width:16em">
       covers meeting points within <input data-k="near" type="number" value="${SPOT_EDIT.near}" style="width:5em"${SPOT_EDIT.r ? ' disabled title="this spot uses its r rectangle"' : ''}> scene px
-      ${b('ground', SPOT_EDIT.ground ? 'Ground map: on' : 'Ground map: off')} ${b('apply', 'Try it')} ${b('rules', 'Use the rules here')} ${b('copy', 'Copy JSON')} ${b('done', 'Done')}</div>
-    <div style="color:#a89a80">Drag a fighter to move it (arrow keys nudge the selected one, Shift for 8 px); drag open ground to move the camera. Green ground: feet can stand there. Copy JSON goes in the scene file's <code>battleSpots</code>.</div>
+      ${b('ground', SPOT_EDIT.ground ? 'Ground map: on' : 'Ground map: off')} ${b('apply', 'Try it')} ${b('rules', 'Use the rules here')} ${b('save', 'Save')} ${b('copy', 'Copy JSON')} ${b('done', 'Done')}
+      <label><input type="checkbox" data-k="whole"${SPOT_EDIT.r ? ' checked' : ''}> every fight in this scene</label></div>
+    <div style="color:#a89a80">Drag a fighter to move it (arrow keys nudge the selected one, Shift for 8 px); drag open ground to move the camera. Green ground: feet can stand there. Save writes the spot into the game's scene file (<code>assets/game/${SC.id}.scene.json</code>, <code>battleSpots</code>); the first time it asks for the game's folder.</div>
+    <div data-k="saved" style="color:#c8f0c8"></div>
     <textarea readonly rows="3" style="width:100%;font:12px monospace;background:#0f0b0e;color:#eadcbf"></textarea>`;
   const frame = document.querySelector('.frame') || cv.parentNode; frame.parentNode.insertBefore(el, frame.nextSibling);
   el.querySelector('[data-k=id]').onchange = e => { SPOT_EDIT.id = e.target.value.trim().replace(/[^\w-]/g, '_') || SPOT_EDIT.id; spotEditChanged(); };
@@ -141,6 +149,9 @@ function spotEditPanel() {
   el.querySelector('[data-k=rules]').onclick = () => spotEditRules();
   el.querySelector('[data-k=copy]').onclick = () => { const t = el.querySelector('textarea'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { try { document.execCommand('copy'); } catch (e2) {} } };
   el.querySelector('[data-k=done]').onclick = () => { spotEditStop(); cv.focus(); };
+  el.querySelector('[data-k=whole]').onchange = e => { SPOT_EDIT.r = e.target.checked ? [0, 0, SC.def.iw || Math.round(SC.ww / (SC.k || 1)), SC.def.ih || Math.round(SC.wh / (SC.k || 1))] : null; spotEditPanel(); };
+  el.querySelector('[data-k=save]').onclick = async () => { const o = el.querySelector('[data-k=saved]'); o.style.color = '#c8f0c8'; o.textContent = 'Saving…';
+    try { o.textContent = await spotEditSave(); } catch (e) { o.style.color = '#ffb0a0'; o.textContent = 'Not saved: ' + (e && e.message || e); } };
   spotEditChanged();
 }
 // over the fight (screen canvas X): the ground map under the battle UI (spotEditGround), every fighter's feet ring and the window's scene
@@ -167,4 +178,53 @@ function spotEditDraw() {
     if (sel) txt(`${b.name} ${spotEditJSON()[b.m ? 'party' : 'foes'][b.m ? B.party.indexOf(b) : B.enemies.indexOf(b)].join(', ')}`, b.x, b.y + 8, good ? '#c8f0c8' : '#ffb0a0', 9, 'center');
   });
   txt(`window ${Math.round(st.win[0] / (SC.k || 1))}, ${Math.round(st.win[1] / (SC.k || 1))} (scene px)`, 6, 4, '#eadcbf', 9);
+}
+
+// ---------------- Save: into the game's own scene file ----------------
+// The scene file's text in the same layout as the game's tools write it (Python json.dump: ", " and ": ", non-ASCII as \u escapes), so
+// a saved file differs from the old one only where the spot changed.
+function spotJSONText(v) {
+  if (v === null || typeof v !== 'object') return typeof v === 'string' ? JSON.stringify(v).replace(/[\u007f-￿]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')) : JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(spotJSONText).join(', ') + ']';
+  return '{' + Object.keys(v).filter(k => v[k] !== undefined).map(k => spotJSONText(k) + ': ' + spotJSONText(v[k])).join(', ') + '}';
+}
+// the scene file with this spot put in (or, after Use the rules here, taken out)
+function spotEditMerge(scene) {
+  const sp = spotEditJSON(), list = Array.isArray(scene.battleSpots) ? scene.battleSpots.filter(s => s.id !== sp.id) : [];
+  if (!SPOT_EDIT.rules) { const i = (scene.battleSpots || []).findIndex(s => s.id === sp.id); if (i >= 0) list.splice(Math.min(i, list.length), 0, sp); else list.push(sp); }
+  if (list.length) scene.battleSpots = list; else delete scene.battleSpots;
+  return scene;
+}
+// the game's folder the browser remembers (IndexedDB, per game id)
+function spotProjectDB(mode, handle) {
+  return new Promise((ok, no) => {
+    const rq = indexedDB.open('eraforge', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('handles');
+    rq.onerror = () => no(rq.error);
+    rq.onsuccess = () => { try { const tx = rq.result.transaction('handles', mode === 'put' ? 'readwrite' : 'readonly'), st = tx.objectStore('handles'), key = 'project:' + GAME.id;
+      const r = mode === 'put' ? st.put(handle, key) : st.get(key); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); } catch (e) { no(e); } };   // (a handle that cannot be stored: not remembered, still saved)
+  });
+}
+async function spotProjectFolder() {
+  let dir = null; try { dir = await spotProjectDB('get'); } catch (e) {}
+  if (dir && (await dir.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await dir.requestPermission({ mode: 'readwrite' })) !== 'granted') dir = null;
+  if (!dir) dir = await window.showDirectoryPicker({ id: 'eraforge-' + GAME.id, mode: 'readwrite' });
+  // the game's own folder: its game.json names this game
+  let cfg = null; try { cfg = JSON.parse(await (await (await dir.getFileHandle('game.json')).getFile()).text()); } catch (e) {}
+  if (!cfg || cfg.id !== GAME.id) throw new Error(`that folder is not ${GAME.name || GAME.id}'s (choose the folder with its game.json)`);
+  try { await spotProjectDB('put', dir); } catch (e) {}
+  return dir;
+}
+async function spotEditSave() {
+  const name = SC.id + '.scene.json';
+  if (typeof window.showDirectoryPicker === 'function') {
+    const dir = await spotProjectFolder(), game = await (await dir.getDirectoryHandle('assets')).getDirectoryHandle('game');
+    const fh = await game.getFileHandle(name), scene = spotEditMerge(JSON.parse(await (await fh.getFile()).text()));
+    const w = await fh.createWritable(); await w.write(spotJSONText(scene)); await w.close();
+    return `Saved: ${dir.name}/assets/game/${name} (${SPOT_EDIT.rules ? 'spot ' + SPOT_EDIT.id + ' removed' : 'spot ' + SPOT_EDIT.id}). Commit the file as with any change.`;
+  }
+  // no folder access in this browser: the updated scene file as a download (from the page's own copy of the scene)
+  const scene = spotEditMerge(JSON.parse(JSON.stringify(SCENE_JSON[SC.id] || SC.def)));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([spotJSONText(scene)], { type: 'application/json' })); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return `This browser cannot write to folders: downloaded ${name}. Put it in the game's assets/game/ folder (replacing the old one).`;
 }
