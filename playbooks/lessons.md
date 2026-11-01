@@ -56,7 +56,7 @@ What the job built: `battleStage` (the fight's camera window and everyone's mark
 8. **Every placement should say what it is.** Rules, an authored spot, hand marks or a fallback: report it (`battlePlacement()`), show
    it on the review page, and give hand placement an editor on the real fight (real backdrop, real scale, the ground map shown), so a
    bad spot is fixed by dragging, not by guessing coordinates.
-9. **A test-page editor saves where desktop editors save: into the project's files.** The browser's folder access (remembered per game, the
-   folder checked by its game.json) writes the one key that changed, read fresh from disk and written in the tools' own JSON layout; a
-   browser without it downloads the file. No server, no tokens, the same for every game. Wrap every IndexedDB callback in try: a throw
-   inside `onsuccess` leaves the promise pending for ever (a handle that cannot be cloned did exactly that in a test).
+9. **Fit a tool's output to how the game is actually made.** A Save that wrote the scene file through the browser's folder access worked,
+   but the game is changed through pull requests: the saved local copy still needed committing, so it only skipped a paste. Copy JSON
+   was enough; Save was taken out (0.2.9). Ask where the result goes next before building the last step. (And wrap every IndexedDB
+   callback in try: a throw inside `onsuccess` leaves its promise pending for ever.)
