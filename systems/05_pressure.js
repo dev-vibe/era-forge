@@ -34,8 +34,7 @@ function pressurePatrols() {
 }
 // a battle in the painted scene (the same backdrop crop as a field foe's)
 function pressureFight(ids, win, extra) {
-  const iw = SC.img.width / SC.ww, c = SC.cam;
-  return { battle: ids, paintImg: SC.img, crop: [Math.max(0, c.x) * iw, Math.max(0, c.y) * iw, Math.min(W, SC.ww) * iw, Math.min(H, SC.wh) * iw], win: win || [], ...(extra || {}) };
+  return { battle: ids, paintImg: SC.img, win: win || [], ...(extra || {}) };   // its window and marks: battleStage (07_battle.js, job battle-place)
 }
 const pressureCleared = () => { Pressure.chkClear = true; };   // the checkpoint's guards were beaten: no more questions this visit
 // called from storyIdle (05d): the checkpoint is asked once per visit, until he has passed it

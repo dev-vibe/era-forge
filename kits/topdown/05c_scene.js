@@ -306,19 +306,26 @@ function sceneInteract() { const j = scJumpFind(); if (j) { scJumpGo(j); return;
 // where the layers should show through (the battlefield's sky and valley notch). A layer travels fx / fy of the camera's travel: the layer is
 // scaled just big enough to cover W + (world width - W) * fx by H + (world height - H) * fy and moved fx / fy as fast as the camera does (its top-left
 // sits at the screen's top-left when the camera is at the start), so 0 = pinned to the screen (a sky), 1 = moves with the ground. alpha (optional) fades a layer.
+// where a parallax layer sits on screen ([x, y, w, h]) with the camera at (camX, camY); null until its image has loaded. A fight on the
+// scene draws the same layers behind its zoomed window (07b battleSceneView, job battle-place: the battlefield's sky was black there).
+function parallaxRect(l, camX, camY) {
+  const im = assetImg(l.img); if (!im) return null;
+  const trx = Math.max(0, SC.ww - W), try_ = Math.max(0, SC.wh - H);
+  const cax = trx ? clamp(camX, 0, trx) : 0, cay = try_ ? clamp(camY, 0, try_) : 0;
+  const fx = l.fx == null ? 0.2 : l.fx, fy = l.fy == null ? 0.2 : l.fy;
+  const dw = W + trx * fx, dh = H + try_ * fy, s = Math.max(dw / im.width, dh / im.height); // just big enough to cover the whole camera travel
+  const lw = l.aligned ? SC.ww : im.width * s, lh = l.aligned ? SC.wh : im.height * s;
+  // Registered road plates retain the painting's scale, aligned at the camera midpoint, with overscan on either side.
+  const x = -Math.round((cax * fx + (l.aligned ? trx*(1-fx)/2 : 0)) * 2) / 2,
+    y = -Math.round((cay * fy + (l.aligned ? try_*(1-fy)/2 : 0)) * 2) / 2;
+  return [x, y, lw, lh, im];
+}
 function drawParallax() {
   const def = SC.def, P = def.parallax; if (!P || !P.length) return;
   L.fillStyle = def.bg || '#241a2c'; L.fillRect(0, 0, W, H);
-  const trx = Math.max(0, SC.ww - W), try_ = Math.max(0, SC.wh - H);
-  const cax = trx ? clamp(SC.cam.x, 0, trx) : 0, cay = try_ ? clamp(SC.cam.y, 0, try_) : 0;
   for (const l of P) {
-    const im = assetImg(l.img); if (!im) continue;
-    const fx = l.fx == null ? 0.2 : l.fx, fy = l.fy == null ? 0.2 : l.fy;
-    const dw = W + trx * fx, dh = H + try_ * fy, s = Math.max(dw / im.width, dh / im.height); // just big enough to cover the whole camera travel
-    const lw = l.aligned ? SC.ww : im.width * s, lh = l.aligned ? SC.wh : im.height * s;
-    // Registered road plates retain the painting's scale, aligned at the camera midpoint, with overscan on either side.
-    const x = -Math.round((cax * fx + (l.aligned ? trx*(1-fx)/2 : 0)) * 2) / 2,
-      y = -Math.round((cay * fy + (l.aligned ? try_*(1-fy)/2 : 0)) * 2) / 2;
+    const r = parallaxRect(l, SC.cam.x, SC.cam.y); if (!r) continue;
+    const [x, y, lw, lh, im] = r;
     if (l.alpha != null) L.globalAlpha = l.alpha;
     L.drawImage(im, x, y, lw, lh);
     if (l.waterShimmer) drawWaterShimmer(im, l.waterShimmer, x, y, lw, lh);

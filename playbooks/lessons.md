@@ -30,3 +30,23 @@ What the job built: a painted title with separate figure layers, a brush wordmar
 11. **Front-screen tone follows the title music.** Ash approved a low-key, lightly swung track and withdrew the brooding direction, so the darkest tier stays gentle (dawn at 0.6, no extra desaturation). Ask about the music's mood before setting a front screen's light.
 12. **After an art or audio hand-off, check by content, not by file date.** The approved title track was rewritten on disk but was byte-identical to the old one; only a hash comparison showed it had not landed. Compare hashes (or `git diff --stat`) for every asset the hand-off claims to have changed.
 13. **Scratch copies never go in the mirrored outputs folder.** A stray copy of a review PNG was left in the read-only outputs mirror. Work copies go in the session's scratch folder, never in the mirrored outputs folder.
+
+## Fights on the painted scene (Ronin job battle-place, 1 Nov 2026)
+
+What the job built: `battleStage` (the fight's camera window and everyone's marks, chosen together by a score), the walk onto the marks
+(`B.tr`), authored `battleSpots`, the scene's sky layers behind a fight, a rim on fliers. CHANGELOG 0.2.5 has the details.
+
+1. **Match the battle camera to the scene's scale before anything else.** Most of "the placement looks odd" was size: battle sprites were
+   drawn for a room at heroK 1.5 over outdoor paintings at heroK 1, so fighters stood half again as tall as the fences. Zooming the
+   window by battle heroK / scene heroK fixed the look and made placement easier (the formation covers a third less of the world).
+2. **Score candidates; never take the first legal one.** A first-fit spiral search accepts any spot whose feet are on ground, up to
+   300 px away. Score open ground round the feet (capped: past ~10 px it stops mattering), distance from where the sides met (with a
+   growing cost past 80 px, or the line leaves the yard for a field that is merely roomier), and squeeze.
+3. **Flood the hero's area on the walk mask itself, not on the coarse grid.** At a 3 px grid the thin necks between a yard's props break
+   and the hero's "area" becomes a pocket the size of his feet.
+4. **Crowded places get authored marks.** A camp yard full of tents, stools and a fire pit has no room for a 3-v-1 line at the right
+   scale; no score finds a good one. `battleSpots` with `party` / `foes` marks, checked with a screenshot, is the honest answer.
+5. **Carry the map into the fight.** The same painting behind the fight is only seamless if the fighters start where they stood and the
+   camera moves from the field view: lerp the window and every fighter's world position together and scale the sprites with the zoom.
+   A full-screen flash or wipe over the first frames hides exactly the continuity it is meant to show.
+6. **Check the layers a scene draws behind its painting.** A battle backdrop that copies only the painting leaves a parallax sky black.

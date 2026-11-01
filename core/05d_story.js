@@ -344,7 +344,7 @@ function foeEncounter(f) {
   if (!f.def.callout) { sfx('encounter'); G.flash = 24; }   // a patrol talks first and flashes only when the fight begins (Job 12b)
   SC.hero.moving = false;
   const p = f.def.party, ids = p ? (typeof p === 'function' ? p() : p) : (contentGet('parties', f.kind) ? contentGet('parties', f.kind)() : [f.kind]);
-  const iw = SC.img.width / SC.ww, c = SC.cam, opts = { paintImg: SC.img, crop: [Math.max(0, c.x) * iw, Math.max(0, c.y) * iw, Math.min(W, SC.ww) * iw, Math.min(H, SC.wh) * iw], sceneFoe: f };
+  const opts = { paintImg: SC.img, sceneFoe: f };   // the fight's own window on this painting and its marks: battleStage (job battle-place)
   if (f.def.callout) { run([...f.def.callout(f), () => { sfx('encounter'); G.flash = 24; }, { battle: ids, ...opts, win: f.def.onWin ? f.def.onWin() : [] }]); return; }   // Job 12b: a patrol calls him out first (05k)
   startBattle(ids, opts);
 }

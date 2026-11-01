@@ -10,12 +10,48 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.2.5 (1 Nov 2026) | `PENDING` | no (optional: `battleSpots`, `foeNpc`, `GAME.battle.heroK`) | a fight on its own scene zooms to the scene's scale, stands where the two sides met (scored placement), walks everyone onto their marks, draws the scene's sky layers |
 | 0.2.4 (31 Oct 2026) | `f1bb9dedc41582b3c6baea2ae719f57e234113e0` | no | an animation category's engine-test link may point at a review page (`/review/<key>/`) |
 | 0.2.3 (31 Oct 2026) | `9e60c67f24a8adf671d04acb0610531c626e1353` | no | the water sparkle takes a painted mask (and match, density, strength, sun, loop, speed), so any painting can sparkle only on its water, seamlessly |
 | 0.2.2 (31 Oct 2026) | `f0b4e66fb90bf31e4ff609b10458fe276d750ca5` | no | a scene's `reflect` polygons fill even-odd, so a polygon inside another is a hole |
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.2.5 (1 Nov 2026, commit `PENDING`)
+
+Ronin job battle-place (Ash, 31 Oct 2026: "often the placement of characters/enemies in the screen are odd"). A fight on the painted
+scene it started on (`kits/battle-turn/07_battle.js` `battleStage`, `07b_battle_draw.js`):
+
+- **The camera is zoomed to the scene's scale.** Battle sprites are drawn at `GAME.battle.heroK` (default 1.5) times a cast sheet's unit
+  size; the scene draws its hero at the scene's `heroK` (1 outdoors). The fight's window is `battle.heroK / scene.heroK` times closer
+  (1.5x outdoors, 1x in a room drawn at 1.5 or more; never wider than the field camera), so fighters stand at the size of the fences
+  and lanterns around them.
+- **The line stands where the two sides met**: the hero and the field foe (`opts.sceneFoe`), else the hero and an NPC whose id is an
+  enemy's id (a boss he has been talking to) or `opts.foeNpc`, else the hero. The camera window and the formation are chosen together
+  by a score: every fighter's feet on walkable ground in the hero's own area (flooded on the walk mask itself) and clear of the
+  foreground layer, open ground round the feet (a chamfer distance on a 3 px grid), close to the meeting point (a move past 80 px costs
+  more and more), squeezed only when it has to be. A tight spot pans the camera to the nearest open ground.
+- **Authored spots** (optional scene JSON `battleSpots`, painting px): `[{ id, at: [x, y], r?: [x0, y0, x1, y1], near? (default 200),
+  rad? (default 40), squeeze? (default .55), party?: [[x, y]...], foes?: [[x, y]...], when? }]`. A fight whose meeting point is in `r`
+  (or within `near` of `at`) is searched close round `at`, squeezed down to `squeeze`; with `party` / `foes` everyone stands on those
+  marks (a crowded yard, a boss's own place). Story steps may pass `at: [x, y]` (painting px) and `foeNpc: '<npc id>'`.
+- **The walk onto the marks** (`B.tr`): a field fight (started from the `scene` state, not a boss with its standoff, not Try again,
+  not `transition: false`) opens on a 3-frame impact frame instead of the encounter flash and the wipe, then the field view eases into
+  the fight's window over 34 frames (24 on Fast) while everyone goes from where they stood on the map (`B.stage.from`: the hero and the
+  foe he met where they were, companions from behind him, other foes from their side, fliers from above) to their mark, their sprites
+  growing with the zoom. The panels come up when everyone is on their mark.
+- **The scene's parallax layers are drawn behind the fight** (a sky behind a painting's transparent top was black). `parallaxRect(l,
+  camX, camY)` (05c) is the layout both use.
+- Bats and crows get a pale 1-art-px rim (`UI.paper`) so they read on dark ground.
+- `foeEncounter` and `pressureFight` no longer pass the field camera's crop (the stage makes its own). `battlePlace` is gone;
+  `battleGroundMap()` stays (battle screen px), now backed by `B.stage.grid`.
+
+### What a game must change
+
+Nothing. A game whose battle sprites are not drawn at heroK 1.5 sets `"battle": { "heroK": <n> }` in `game.json`. A fight on its own
+painting (`paint` / `bg` that is not the scene's, a duel) keeps the fixed formation. `opts.view: false` keeps a scene fight on the old
+field-camera crop; `opts.transition: false` skips the walk onto the marks.
 
 ## 0.2.4 (31 Oct 2026, commit `f1bb9de`)
 

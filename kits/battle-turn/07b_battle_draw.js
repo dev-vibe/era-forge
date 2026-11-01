@@ -152,18 +152,72 @@ function battleBackdrop() {
   const pbg = B.opts.paintImg || (B.opts.paint && assetImg(B.opts.paint));
   g.imageSmoothingEnabled = true;
   try { g.filter = 'blur(1.2px) saturate(0.9) brightness(0.92)'; } catch (e) {}
-  if (pbg) { if (B.opts.crop) { const k = B.opts.crop; g.drawImage(pbg, k[0], k[1], k[2], k[3], 0, 0, W * D, H * D); } else g.drawImage(pbg, 0, 0, W * D, H * D); }
+  if (B.stage) { g.save(); g.scale(D, D); battleSceneView(g, B.stage.win); g.restore(); }   // the scene's window, its sky layers behind (job battle-place)
+  else if (pbg) { if (B.opts.crop) { const k = B.opts.crop; g.drawImage(pbg, k[0], k[1], k[2], k[3], 0, 0, W * D, H * D); } else g.drawImage(pbg, 0, 0, W * D, H * D); }
   else g.drawImage(battleBackdropArt(B.bg), 0, 0, W * D, H * D);
   g.filter = 'none';
   if (pbg && B.opts.crop) { g.fillStyle = 'rgba(14,10,24,.18)'; g.fillRect(0, 0, W * D, H * D); }
   B.bgc = c; return c;
 }
+// a fight on its own scene (job battle-place): the scene's parallax layers (a sky behind the painting's transparent top) and the painting,
+// for the world rect c = [x, y, w, h], onto g in battle screen px. The layers sit where the field camera would have them with its view
+// centred on c, so the sky is the one the player was just looking at.
+function battleSceneView(g, c) {
+  const iw = SC.img.width / SC.ww, P = SC.def.parallax;
+  g.save(); g.scale(W / c[2], H / c[3]); g.translate(-c[0], -c[1]);
+  if (P && P.length && typeof parallaxRect === 'function') {
+    g.fillStyle = SC.def.bg || '#241a2c'; g.fillRect(c[0], c[1], c[2], c[3]);
+    const camX = c[0] + c[2] / 2 - W / 2, camY = c[1] + c[3] / 2 - H / 2;
+    const cax = SC.ww > W ? clamp(camX, 0, SC.ww - W) : 0, cay = SC.wh > H ? clamp(camY, 0, SC.wh - H) : 0;
+    for (const l of P) { const r = parallaxRect(l, camX, camY); if (!r) continue; g.globalAlpha = l.alpha == null ? 1 : l.alpha; g.drawImage(r[4], r[0] + cax, r[1] + cay, r[2], r[3]); }
+    g.globalAlpha = 1;
+  }
+  g.drawImage(SC.img, c[0] * iw, c[1] * iw, c[2] * iw, c[3] * iw, c[0], c[1], c[2], c[3]);
+  g.restore();
+}
+// The walk onto the marks (job battle-place). B.tr = { t, len, c0: the field view, c1: the fight's window } (world rects). trView() is the
+// window this frame (null once it is done); trAt(b) is where fighter b is drawn this frame [x, y, scale] (battle screen px): from where it
+// stood on the map (B.stage.from) to its mark, carried by the camera as it eases in, its sprite growing with the zoom.
+const trEase = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+function trView() {
+  const r = B.tr; if (!r || r.t >= r.len || !B.stage) return null;
+  const u = trEase(clamp(r.t / r.len, 0, 1));
+  return r.c0.map((v, i) => v + (r.c1[i] - v) * u);
+}
+function trAt(b, c) {
+  const st = B.stage, fr = st.from.get(b); if (!fr) return null;
+  const r = B.tr, lead = b === B.party[0] || b === st.lead;
+  // the hero and the foe he met set off at once, quickly; the others run the whole way in
+  const u = clamp((r.t - (lead ? 0 : 2)) / (r.len * (lead ? 0.7 : 0.95)), 0, 1), p = 1 - Math.pow(1 - u, 3);
+  const to = [st.win[0] + b.x / st.zx, st.win[1] + b.y / st.zy];
+  const wx = fr[0] + (to[0] - fr[0]) * p, wy = fr[1] + (to[1] - fr[1]) * p;
+  const kx = W / c[2], ky = H / c[3], run = u > 0 && u < 1 ? Math.abs(Math.sin(u * Math.PI * 4)) * 2.5 : 0;
+  return [(wx - c[0]) * kx, (wy - c[1]) * ky - run, kx / st.zx];
+}
+// the field view easing in: the sharp painting (and its sky and water) at this frame's window, darkened and softened into the fight's
+// own backdrop over the last frames
+function drawTrBackdrop(c, sx, sy) {
+  L.save(); L.translate(sx, sy); L.imageSmoothingEnabled = true; battleSceneView(L, c); L.restore();
+  drawBattleWater(sx, sy, c);
+  const u = B.tr.t / B.tr.len;
+  L.fillStyle = `rgba(14,10,24,${(0.18 * trEase(u)).toFixed(3)})`; L.fillRect(0, 0, W, H);
+  if (u > 0.8) { L.globalAlpha = (u - 0.8) / 0.2; L.imageSmoothingEnabled = true; L.drawImage(battleBackdrop(), sx, sy, W, H); L.globalAlpha = 1; }
+}
+// bats and crows are dark on dark ground: a pale 1-art-px rim under their sprite (job battle-place)
+const FLIER_RIM = new WeakMap();
+function flierRim(s) {
+  let c = FLIER_RIM.get(s); if (c) return c;
+  const [cc, g] = mk(s.width + 2, s.height + 2);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) g.drawImage(s, 1 + dx, 1 + dy);
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = UI.paper || '#f4ecd8'; g.fillRect(0, 0, cc.width, cc.height);
+  FLIER_RIM.set(s, cc); return cc;
+}
 // Water polish (30 Oct 2026): a fight that started in a painted scene uses a still crop of that painting, so its water stopped dead. The
 // scene's water loops (05c drawWaterLoops) are drawn over the crop the way the backdrop is made: same place, darkened by the same wash,
 // softened by the same blur.
-function drawBattleWater(sx, sy) {
+function drawBattleWater(sx, sy, view) {
   const o = B.opts; if (!o.crop || typeof SC !== 'object' || o.paintImg !== SC.img || !(SC.wl || []).length || typeof drawWaterLoops !== 'function') return;
-  const iw = SC.img.width / SC.ww, k = o.crop, cx = k[0] / iw, cy = k[1] / iw, kx = W / (k[2] / iw), ky = H / (k[3] / iw);
+  const iw = SC.img.width / SC.ww, k = view ? view.map(v => v * iw) : o.crop, cx = k[0] / iw, cy = k[1] / iw, kx = W / (k[2] / iw), ky = H / (k[3] / iw);
   const [c, g] = B.wc || (B.wc = mk(W * D, H * D));
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, W * D, H * D); g.imageSmoothingEnabled = false;
   g.setTransform(D * kx, 0, 0, D * ky, -cx * D * kx, -cy * D * ky);
@@ -178,21 +232,21 @@ function battleInk() { return B.bgInk || (B.bgInk = themeUI('battleBackdrop')(ba
 function drawBattle() {
   const sx = B.shake ? ri(-3, 3) : 0, sy = B.shake ? ri(-2, 2) : 0;
   L.fillStyle = '#07060a'; L.fillRect(0, 0, W, H);
-  const impact = B.impact > 0;
+  const impact = B.impact > 0, tv = trView(), tvAt = tv || (B.tr && B.impact > 0 && B.tr.t === 0 ? B.tr.c0 : null);
   L.save();
   if (B.zoom && !impact) { const z = B.zoom, k = 1 + (z.k - 1) * Math.pow(1 - z.t / z.dur, 2); L.translate(z.x, z.y); L.scale(k, k); L.translate(-z.x, -z.y); }
   if (impact) themeUI('battleImpact')(L);
   else {
     L.imageSmoothingEnabled = true;
-    L.drawImage(battleBackdrop(), sx, sy, W, H);
-    drawBattleWater(sx, sy);
+    if (tv) drawTrBackdrop(tv, sx, sy);
+    else { L.drawImage(battleBackdrop(), sx, sy, W, H); drawBattleWater(sx, sy); }
     if (B.ink > 0) { L.globalAlpha = B.ink; L.drawImage(battleInk(), sx, sy, W, H); L.globalAlpha = 1; }
     L.imageSmoothingEnabled = false;
     if (!B.opts.paintImg && !B.opts.paint) drawBattleAmbient(B.bg, B.t);
     if (B.opts.fog && typeof drawFog === 'function') drawFog(L, B.opts.fog);
   }
-  const intro = B.phase === 'intro' ? Math.max(0, 1 - B.t / 22) : 0;
-  const drawShadow = (x, y, w) => L.drawImage(shadowSprite(w, Math.max(6, w * 0.28)), Math.round(x - w / 2), Math.round(y - w * 0.14));
+  const intro = B.phase === 'intro' && !B.tr ? Math.max(0, 1 - B.t / 22) : 0;
+  const drawShadow = (x, y, w) => { if (B.tr && B.tr.t < B.tr.len) w = Math.round(w); L.drawImage(shadowSprite(w, Math.max(6, w * 0.28)), Math.round(x - w / 2), Math.round(y - w * 0.14)); };
   const inStand = B.so && !B.so.res;
   const acts = [];
   // one fighter: its feet at (fx, fy); rot bends a side frame into a pose around the feet
@@ -211,6 +265,7 @@ function drawBattle() {
     const motion = who ? fxMotion(who) : { rot: 0, sx: 1, sy: 1 };
     rot += motion.rot; kx *= motion.sx; ky *= motion.sy;
     L.save(); L.globalAlpha = alpha; L.translate(Math.round(fx), Math.round(fy + bob)); if (rot) L.rotate(rot); if (ky !== 1 || kx !== 1) L.scale(kx, ky);
+    if (who && isFlier(who) && !impact) { const q = w / s.width; L.globalAlpha = alpha * 0.55; drawSpr(L, flierRim(s), -axw - q, -h - q, w + 2 * q, h + 2 * q); L.globalAlpha = alpha; }
     drawSpr(L, img, -axw, -h, w, h);
     if (flash && !impact) { L.globalCompositeOperation = 'lighter'; drawSpr(L, s, -axw, -h, w, h); drawSpr(L, s, -axw, -h, w, h); L.globalCompositeOperation = 'source-over'; }
     L.restore(); L.globalAlpha = 1;
@@ -218,23 +273,25 @@ function drawBattle() {
   };
   for (const e of B.enemies) {
     if (e.fade <= 0) continue;
-    acts.push({ y: e.y, f: () => {
+    acts.push({ y: tvAt && trAt(e, tvAt) ? trAt(e, tvAt)[1] : e.y, f: () => {
       const [s, sc, rot, isPose, ax] = enemyBattleSprite(e), fly = e.d.kind === 'crow' || e.d.kind === 'bat';
-      const ex = fxX(e) + sx - intro * 260 + (inStand && B.so.flick ? (B.so.flick % 2 ? 3 : -3) : 0);
-      const bob = fly ? Math.sin(B.at / 8 + e.x) * 4 - 26 : Math.sin(B.at / 20 + e.x) * 0.6;
-      if (!impact) { L.globalAlpha = e.fade; drawShadow(ex, e.y, Math.min(s.width * sc * 0.8, e.d.scale ? 80 : fly ? 26 : e.d.kind ? 46 : 60)); L.globalAlpha = 1; }
+      const ta = tvAt && trAt(e, tvAt), tk = ta ? ta[2] : 1, gy = ta ? ta[1] : e.y;   // the walk onto the marks: where it is this frame
+      const ex = (ta ? ta[0] : fxX(e)) + sx - intro * 260 + (inStand && B.so.flick ? (B.so.flick % 2 ? 3 : -3) : 0);
+      const bob = (fly ? Math.sin(B.at / 8 + e.x) * 4 - 26 : Math.sin(B.at / 20 + e.x) * 0.6) * tk;
+      if (!impact) { L.globalAlpha = e.fade; drawShadow(ex, gy, Math.min(s.width * sc * 0.8, e.d.scale ? 80 : fly ? 26 : e.d.kind ? 46 : 60) * tk); L.globalAlpha = 1; }
       // a Heavy winding up glows red; a broken foe shows a grey haze
       if (!impact && e.alive && (enemyPose(e) === 'wind' || (e.plans && e.plans.some(p => p.heavy) && choosingPhase()))) { L.globalCompositeOperation = 'lighter'; L.globalAlpha = 0.35 + Math.sin(B.at / 5) * 0.15; L.drawImage(glowSprite(46, '#ff4020'), ex - 46, e.y - s.height * sc * 0.55 - 46); L.globalAlpha = 1; L.globalCompositeOperation = 'source-over'; }
       if (isPose && enemyCast(e.id)) e._ready = poseSprite(enemyCast(e.id)[0], 'ready', true);
-      const ey = e.y - (e.offY || 0) + fxMotion(e).y;
-      const [w, h] = put(s, sc, rot, ex, ey, bob, e.fade, e.flash > 0 && e.flash % 4 < 2, isPose, ax, e);
+      const ey = ta ? gy : e.y - (e.offY || 0) + fxMotion(e).y;
+      const [w, h] = put(s, sc * tk, rot, ex, ey, bob, e.fade, e.flash > 0 && e.flash % 4 < 2, isPose, ax, e);
       e.sx = ex; e.sy = ey - h + bob; e.sh = h;
     } });
   }
-  B.party.forEach((p, i) => acts.push({ y: p.y, f: () => {
-    const [s, sc, rot, isPose, ax] = memberBattleSprite(p);
+  B.party.forEach((p, i) => acts.push({ y: tvAt && trAt(p, tvAt) ? trAt(p, tvAt)[1] : p.y, f: () => {
+    const [s, sc0, rot, isPose, ax] = memberBattleSprite(p);
     if (isPose) p._ready = poseSprite(memberCastId(p.m), 'ready', false);
-    const hx = fxX(p) + sx + intro * 200, footY = fxFootY(p);
+    const ta = tvAt && trAt(p, tvAt), tk = ta ? ta[2] : 1, sc = sc0 * tk, gy = ta ? ta[1] : p.y;   // the walk onto the marks
+    const hx = (ta ? ta[0] : fxX(p)) + sx + intro * 200, footY = ta ? gy : fxFootY(p);
     if (inStand && i > 0) L.globalAlpha = 0.5;
     if (!up(p) && !isPose) {   // down, with no pose sheet: lying on the ground, dimmed
       const w = s.width * sc, h = s.height * sc;
@@ -242,7 +299,7 @@ function drawBattle() {
       p.sx = hx; p.sy = p.y - 30; return;
     }
     if (!impact) {
-      drawShadow(hx, p.y, 40);
+      drawShadow(hx, gy, 40 * tk);
       if (p.guard > 0 || p.cover > 0) { L.globalCompositeOperation = 'lighter'; L.globalAlpha = 0.35 + Math.sin(B.at / 6) * 0.12; L.drawImage(glowSprite(40, p.cover > 0 ? '#ffd080' : p.stone ? '#9a948a' : '#80b0ff'), hx - 40, p.y - s.height * sc / 2 - 40); L.globalAlpha = 1; L.globalCompositeOperation = 'source-over'; }
     }
     const bob = p.flee && up(p) ? -(p.fr === 1 ? 2 : 0) : up(p) ? Math.round(Math.sin(B.at / 18 + p.x)) : 0;
@@ -272,6 +329,7 @@ function drawBattle() {
 function memberPortrait(m) { return m === G.hero ? portrait(HERO_SPR) : assetImg('portrait_' + allyDef(m.id).cast); }
 function drawBattleUI() {
   if (B.impact > 0) return;   // the impact frame is ink and paper only
+  if (B.tr && B.tr.t < B.tr.len) return;   // the walk onto the marks: the panels come up once everyone is on their mark
   const p = actor(), m = p ? p.m : G.hero;
   const choosing = choosingPhase();
   const inStand = B.so && !B.so.res;

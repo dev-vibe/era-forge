@@ -10,7 +10,8 @@
 //   - boss standoff before a boss fight; difficulty (07c_settings.js); Try again after a loss.
 //  Drawing, poses and ink effects are in 07b_battle_draw.js.
 //  Kept from v1: the party of three, a decoy drawing every attack, a revive song, getting up with 1 HP after a won
-//  fight, painted backdrops with everyone placed on real walkable ground (battlePlace).
+//  fight, painted backdrops with everyone placed on real walkable ground (battleStage, job battle-place: the camera zoomed to the
+//  scene's scale, the line where the two sides met, the walk onto the marks).
 // ============================================================
 const B = {};
 const BSPR = {};
@@ -28,8 +29,11 @@ const COMMANDS = ['Strike', 'Technique', 'Guard', 'Item', 'Flee'];
 const battleCommands = () => B.opts.duel ? ['Strike', 'Technique', 'Guard', 'Item', 'Concede'] : COMMANDS;
 
 function startBattle(ids, opts = {}) {
-  // a fight started in a painted scene without its own backdrop uses the screen it started on (Job 8e)
-  if (G.state === 'scene' && SC.img && !opts.paint && !opts.paintImg && !opts.bg) { const iw = SC.img.width / SC.ww, c = SC.cam; opts = Object.assign({}, opts, { paintImg: SC.img, crop: [Math.max(0, c.x) * iw, Math.max(0, c.y) * iw, Math.min(W, SC.ww) * iw, Math.min(H, SC.wh) * iw] }); }
+  // a fight started in a painted scene without its own backdrop uses the screen it started on (Job 8e); on a scene with a walk mask
+  // it gets its own camera window and marks (battleStage below, job battle-place)
+  const wasScene = G.state === 'scene', onScene = sceneFight(opts);
+  if (onScene) opts = Object.assign({}, opts, { paintImg: SC.img });
+  else if (G.state === 'scene' && SC.img && !opts.paint && !opts.paintImg && !opts.bg) { const iw = SC.img.width / SC.ww, c = SC.cam; opts = Object.assign({}, opts, { paintImg: SC.img, crop: [Math.max(0, c.x) * iw, Math.max(0, c.y) * iw, Math.min(W, SC.ww) * iw, Math.min(H, SC.wh) * iw] }); }
   const df = diff();
   // the party
   const mem = opts.solo ? [G.hero] : typeof battleParty === 'function' ? battleParty() : [G.hero], pp = PARTY_POS[mem.length - 1];
@@ -52,7 +56,14 @@ function startBattle(ids, opts = {}) {
   Object.assign(B, { opts, bg: opts.bg || 'field', phase: boss ? 'standoff' : 'intro', t: 0, at: 0, tick: 0, sel: 0, sub: 0, target: 0, q: [], msg: '', pops: [], fx: [], shake: 0, lines: [], li: 0, pending: null, turn: 0, ally: 0, allyList: [],
     tm: null, stop: 0, impact: 0, zoom: null, cut: null, wipe: 0, so: null, ink: boss ? 1 : 0, bgc: null, bgInk: null, loseSel: 0, round: 0, sigSeen: {}, tags: [] });
   if (boss) { const hard = cfg().diff === 'hard'; B.so = { t: 0, glint: ri(110, 190), held: false, res: null, feint: hard ? ri(50, 95) : -1, flick: 0 }; B.so.feint = B.so.feint >= B.so.glint - 12 ? -1 : B.so.feint; }
-  battlePlace();   // on a painted backdrop, stand everyone on ground they could really stand on
+  B.stage = null; B.tr = null;
+  if (onScene) battleStage(B.opts);   // the camera window and everyone's marks on the scene (job battle-place)
+  // the walk onto the marks (07b drawBattle): the field view eases into the fight's window while everyone goes from where they stood
+  // on the map to their mark; it opens on a short impact frame instead of the encounter flash and the wipe (a boss has its standoff)
+  if (B.stage && wasScene && !boss && !B.retrying && opts.transition !== false) {
+    B.tr = { t: 0, len: cfg().speed > 1 ? 24 : 34, c0: B.stage.view0, c1: B.stage.win };
+    B.wipe = 40; B.impact = 3; G.flash = 0;
+  }
   if (opts.duel) duelPlace(opts.duel);
   const names = [...new Set(ids.map(i => contentGet('enemies', i).name))];
   B.msg = hasBoss || opts.boss ? `${B.enemies[0].d.name} stands in your way!` : (n > 1 ? `${names.join(' and ')} attack!` : `A ${names[0]} appears!`);
@@ -66,96 +77,161 @@ function startBattle(ids, opts = {}) {
   playMusic(opts.boss ? 'boss' : 'battle');
   if (boss) sfx('taiko');
 }
-// ---------------- standing on real ground (Ash, 14 Oct 2026: 'the placement of chars seems insane ... realistic according to
-// walkable terrain') ----------------
-// A fight on a painted backdrop (the screen it started on, or the scene's own painting) knows the scene's walk mask, so the
-// fighters are moved off the default formation spots onto spots whose feet stand on walkable ground in the same
-// connected area as the hero: the whole battle line is shifted (or squeezed) together onto open ground; failing that the enemies
-// and the party each keep their own formation, the party to the right of the enemies, clear of the panels; failing that each
-// fighter goes to the nearest free spot on its own side.
-// Fliers (crows, bats) hover and keep their spots; with no mask, or no ground found, the default formation stays.
-function battleGroundMap() {
-  const o = B.opts; if (!SC.mask || !SC.def || !SC.img) return null;
-  let cx, cy, cw, ch;
-  if (o.crop && o.paintImg === SC.img) { const iw = SC.img.width / SC.ww; [cx, cy, cw, ch] = o.crop.map(v => v / iw); }
-  else if (o.paint && !o.crop && SC.def.img === o.paint) { cx = 0; cy = 0; cw = SC.ww; ch = SC.wh; }
-  else return null;
-  const sx = cw / W, sy = ch / H, gw = Math.ceil(W / 2), gh = Math.ceil(H / 2);   // a 2 px grid over the battle screen
-  const walk = new Uint8Array(gw * gh);
-  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (scWalk(cx + i * 2 * sx, cy + j * 2 * sy)) walk[j * gw + i] = 1;
-  // the connected area the hero stands in (if he is on this screen), else every walkable cell
-  let area = walk; const h = SC.hero;
+// ---------------- the fight on its own painted scene: the camera and everyone's marks (job battle-place, 1 Nov 2026) ----------------
+// Ash, 31 Oct 2026: "often the placement of characters/enemies in the screen are odd". Before, a fight on the scene it started on
+// kept the field camera (so outdoors the fighters stood half again as tall as the fences they stood by), started from a fixed
+// formation and took the first shift of it that put every pair of feet on walkable ground, up to 300 px away from where the two
+// sides had met. Now a fight on its own scene:
+//  1. zooms the camera so the painting matches the battle sprites: they are drawn at GAME.battle.heroK (default 1.5) times a cast
+//     sheet's unit size, the scene draws its hero at the scene's heroK (1 outdoors), so the view comes battle/scene times closer
+//     (1.5x outdoors, 1x in a room drawn at 1.5 or more; never further out than the field camera);
+//  2. stands the battle line where the sides met (the hero and the field foe, the hero and the NPC the enemy is, opts.at, or the
+//     scene's authored `battleSpots`), choosing the camera window and the formation together by a score: every fighter's feet on
+//     walkable ground in the hero's own area and clear of the foreground layer, plenty of open ground round the feet (in front most),
+//     close to the meeting point, squeezed only when it has to be; a tight spot pans the camera to the nearest open ground;
+//  3. remembers where everyone stood on the map (B.stage.from) for the walk onto the marks (B.tr, the transition, 07b).
+// A fight on its own painting (opts.paint / opts.bg that is not the scene's, a duel's road card) keeps the fixed formation.
+const battleHeroK = () => (GAME.battle && GAME.battle.heroK) || 1.5;
+const isFlier = b => !b.m && !!b.d && (b.d.kind === 'crow' || b.d.kind === 'bat');
+// is this fight on the painted scene the hero is in? (opts.view === false: no)
+function sceneFight(o) {
+  if (typeof SC !== 'object' || !SC.img || !SC.def || !SC.mask || o.view === false || o.duel) return false;
+  if (o.paintImg) return o.paintImg === SC.img;
+  if (o.paint) return o.paint === SC.def.img && !o.crop;
+  return G.state === 'scene' && !o.bg;
+}
+// the walk grid round the meeting point: G px cells over the world rect [x0, y0, x0 + gw * G, y0 + gh * G]
+const STAGE_G = 3;
+function stageGrid(x0, y0, x1, y1) {
+  const g = STAGE_G; x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0)); x1 = Math.min(SC.ww, x1); y1 = Math.min(SC.wh, y1);
+  const gw = Math.max(1, Math.ceil((x1 - x0) / g)), gh = Math.max(1, Math.ceil((y1 - y0) / g)), n = gw * gh;
+  const walk = new Uint8Array(n);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (scWalk(x0 + i * g + g / 2, y0 + j * g + g / 2)) walk[j * gw + i] = 1;
+  // the connected area the hero stands in (if he is in the grid), else every walkable cell. Flooded on the walk mask itself, one world px
+  // at a time (a coarse grid cuts the thin necks between a yard's props and leaves him in a pocket)
+  let ok = walk; const h = SC.hero;
   if (h) {
-    const hi = Math.round((h.x - cx) / sx / 2), hj = Math.round((h.y - cy) / sy / 2);
-    let seed = -1;
-    for (let r = 0; r < 12 && seed < 0; r++) for (let dj = -r; dj <= r && seed < 0; dj++) for (let di = -r; di <= r; di++) {
-      const i = hi + di, j = hj + dj; if (i >= 0 && j >= 0 && i < gw && j < gh && walk[j * gw + i]) { seed = j * gw + i; break; }
+    const X0 = x0, Y0 = y0, RW = Math.min(SC.ww, x0 + gw * g) - X0, RH = Math.min(SC.wh, y0 + gh * g) - Y0, wk = (x, y) => scWalk(X0 + x, Y0 + y);
+    let seed = -1; const hx = Math.round(h.x - X0), hy = Math.round(h.y - Y0);
+    for (let r = 0; r < 30 && seed < 0; r++) for (let dy = -r; dy <= r && seed < 0; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = hx + dx, y = hy + dy; if (x >= 0 && y >= 0 && x < RW && y < RH && wk(x, y)) { seed = y * RW + x; break; }
     }
     if (seed >= 0) {
-      area = new Uint8Array(gw * gh); const st = [seed]; area[seed] = 1;
-      while (st.length) { const c = st.pop(), i = c % gw, j = (c - i) / gw;
-        for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = i + di, b2 = j + dj; if (a < 0 || b2 < 0 || a >= gw || b2 >= gh) continue; const n = b2 * gw + a; if (walk[n] && !area[n]) { area[n] = 1; st.push(n); } } }
+      const area = new Uint8Array(RW * RH), st = [seed]; area[seed] = 1;
+      while (st.length) { const c = st.pop(), x = c % RW, y = (c - x) / RW;
+        if (x > 0 && !area[c - 1] && wk(x - 1, y)) { area[c - 1] = 1; st.push(c - 1); }
+        if (x < RW - 1 && !area[c + 1] && wk(x + 1, y)) { area[c + 1] = 1; st.push(c + 1); }
+        if (y > 0 && !area[c - RW] && wk(x, y - 1)) { area[c - RW] = 1; st.push(c - RW); }
+        if (y < RH - 1 && !area[c + RW] && wk(x, y + 1)) { area[c + RW] = 1; st.push(c + RW); } }
+      ok = new Uint8Array(n);
+      for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const x = Math.round(i * g + g / 2), y = Math.round(j * g + g / 2);
+        if (walk[j * gw + i] && x < RW && y < RH && area[y * RW + x]) ok[j * gw + i] = 1; }
     }
   }
-  // ground covered by the foreground layer (a maple canopy, a roof the hero walks behind) is no place to stand in a fight:
-  // battle sprites are drawn over the painting, so a fighter there would seem to stand on top of the tree
-  let cover = null;
-  const fgs = [...new Set((SC.def.occ || []).map(o => o.src).filter(Boolean))].map(n => assetImg(n)).filter(Boolean);
+  // ground under the foreground layer (a maple canopy, a roof the hero walks behind) is no place to stand in a fight: battle sprites
+  // are drawn over the painting, so a fighter there would seem to stand on top of the tree
+  const fgs = [...new Set((SC.def.occ || []).map(o => o.src).filter(Boolean))].map(nm => assetImg(nm)).filter(Boolean);
   if (fgs.length) {
-    const [c, g] = mk(gw, gh), r = (fgs[0].width || SC.img.width) / SC.img.width, iw = SC.img.width / SC.ww;
-    for (const im of fgs) g.drawImage(im, cx * iw * r, cy * iw * r, cw * iw * r, ch * iw * r, 0, 0, gw, gh);
-    try { const d = g.getImageData(0, 0, gw, gh).data; cover = new Uint8Array(gw * gh); for (let n = 0; n < gw * gh; n++) cover[n] = d[n * 4 + 3] > 40 ? 1 : 0; } catch (e) { cover = null; }
+    const [, cg] = mk(gw, gh), iw = SC.img.width / SC.ww;
+    for (const im of fgs) { const r = (im.width || SC.img.width) / SC.img.width; cg.drawImage(im, x0 * iw * r, y0 * iw * r, gw * g * iw * r, gh * g * iw * r, 0, 0, gw, gh); }
+    try { const d = cg.getImageData(0, 0, gw, gh).data; if (ok === walk) ok = walk.slice(); for (let c = 0; c < n; c++) if (d[c * 4 + 3] > 40) ok[c] = 0; } catch (e) {}
   }
-  return (x, y) => { const i = Math.round(x / 2), j = Math.round(y / 2), n = j * gw + i; return i >= 0 && j >= 0 && i < gw && j < gh && area[n] === 1 && !(cover && cover[n]); };
+  // open ground: how far (world px, up to 60) every cell is from ground nobody could stand on (a 3-4 chamfer distance)
+  const BIG = 1 << 14, dt = new Uint16Array(n);
+  for (let c = 0; c < n; c++) dt[c] = ok[c] ? BIG : 0;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const c = j * gw + i; if (!dt[c]) continue; let v = dt[c];
+    if (i > 0) v = Math.min(v, dt[c - 1] + 3); else v = Math.min(v, 3);
+    if (j > 0) { v = Math.min(v, dt[c - gw] + 3); if (i > 0) v = Math.min(v, dt[c - gw - 1] + 4); if (i < gw - 1) v = Math.min(v, dt[c - gw + 1] + 4); } else v = Math.min(v, 3);
+    dt[c] = v; }
+  for (let j = gh - 1; j >= 0; j--) for (let i = gw - 1; i >= 0; i--) { const c = j * gw + i; if (!dt[c]) continue; let v = dt[c];
+    if (i < gw - 1) v = Math.min(v, dt[c + 1] + 3); else v = Math.min(v, 3);
+    if (j < gh - 1) { v = Math.min(v, dt[c + gw] + 3); if (i < gw - 1) v = Math.min(v, dt[c + gw + 1] + 4); if (i > 0) v = Math.min(v, dt[c + gw - 1] + 4); } else v = Math.min(v, 3);
+    dt[c] = v; }
+  const at = (x, y) => { const i = Math.floor((x - x0) / g), j = Math.floor((y - y0) / g); return i >= 0 && j >= 0 && i < gw && j < gh ? j * gw + i : -1; };
+  return { ok: (x, y) => { const c = at(x, y); return c >= 0 && ok[c] === 1; }, clear: (x, y) => { const c = at(x, y); return c < 0 ? 0 : Math.min(60, dt[c] / 3 * g); } };
 }
-function battlePlace() {
-  const ok = battleGroundMap(); if (!ok) return;
-  const feet = (x, y, half) => x > 8 && x < W - 8 && y >= 104 && y <= 266 && ok(x, y) && ok(x - half, y) && ok(x + half, y) && ok(x, y - 4) && ok(x, y + 2) && ok(x - half, y - 6) && ok(x + half, y - 6);
-  const half = b => b.m ? 12 : (b.d.scale ? 22 : 14);
-  const fly = b => !b.m && (b.d.kind === 'crow' || b.d.kind === 'bat');
-  // a group keeps its formation: try shifts outward from where it stands (then the formation squeezed to 3/4 and 1/2)
-  const fit = (group, test) => {
-    const g = group.filter(b => !fly(b)); if (!g.length) return true;
-    const ax = g.reduce((t, b) => t + b.x, 0) / g.length, ay = g.reduce((t, b) => t + b.y, 0) / g.length;
-    for (const sq of [1, 0.75, 0.5]) for (let r = 0; r <= 300; r += 4) {
-      const n = r ? Math.max(8, Math.round(r / 3)) : 1;
-      for (let a = 0; a < n; a++) {
-        const dx = Math.cos(a / n * 6.283) * r, dy = Math.sin(a / n * 6.283) * r * 0.6;
-        const pts = g.map(b => [Math.round(ax + (b.x - ax) * sq + dx), Math.round(ay + (b.y - ay) * sq + dy)]);
-        if (pts.every(([x, y], i) => feet(x, y, half(g[i]))) && test(pts)) { g.forEach((b, i) => { b.x = pts[i][0]; b.y = pts[i][1]; }); return true; }
-      }
+// the camera window and every fighter's mark. Sets B.stage { z, win: [x, y, w, h] world rect, E, grid, from }, opts.crop (image px)
+// and every fighter's x, y (battle screen px).
+function battleStage(o) {
+  const z = Math.max(1, battleHeroK() / scHK());
+  const vw = Math.min(W / z, SC.ww), vh = Math.min(H / z, SC.wh), zx = W / vw, zy = H / vh;
+  const h = SC.hero, f = o.sceneFoe || null;
+  // the enemy the hero faced: the field foe, else an NPC with an enemy's id (a boss he has been talking to), else opts.foeNpc
+  const npc = f ? null : (o.foeNpc && scNpc(o.foeNpc)) || B.enemies.map(e => scNpc(e.id)).find(Boolean) || null;
+  const foe = f || npc;
+  let E = foe ? [(h.x + foe.x) / 2, (h.y + foe.y) / 2] : [h.x, h.y];
+  // an authored spot: the content's opts.at (scene px), else the scene's battleSpots entry whose r holds E, else the nearest within its `near`
+  const K = SC.k || 1;
+  let spot = o.at ? { at: o.at } : null;
+  if (!spot) { let best = 1e9; for (const s of SC.def.battleSpots || []) {
+    if (!scTrigOn(s)) continue;
+    const inR = s.r && scIn(s.r, E[0], E[1]), d = Math.hypot(s.at[0] * K - E[0], s.at[1] * K - E[1]);
+    if ((inR || d <= (s.near || 200) * K) && (inR ? -1 : d) < best) { best = inR ? -1 : d; spot = s; } } }
+  const all = [...B.party, ...B.enemies], grounded = all.filter(b => !isFlier(b));
+  // the default formation (battle px): its centre P0 is where the line sits on screen when the window is free to move
+  const P0 = [grounded.reduce((t, b) => t + b.x, 0) / grounded.length, grounded.reduce((t, b) => t + b.y, 0) / grounded.length];
+  const off = all.map(b => [b.x - P0[0], b.y - P0[1]]);
+  const winAt = C => [vw >= SC.ww ? (SC.ww - vw) / 2 : clamp(C[0] - P0[0] / zx, 0, SC.ww - vw), vh >= SC.wh ? (SC.wh - vh) / 2 : clamp(C[1] - P0[1] / zy, 0, SC.wh - vh)];
+  const RAD = 260;
+  const grid = stageGrid(E[0] - RAD - 360 / zx, E[1] - RAD * 0.75 - 200 / zy, E[0] + RAD + 360 / zx, E[1] + RAD * 0.75 + 140 / zy);
+  const half = b => (b.m ? 12 : (b.d.scale ? 22 : 14)) / zx, fy = 1 / zy;
+  const feet = (x, y, hw) => grid.ok(x, y) && grid.ok(x - hw, y) && grid.ok(x + hw, y) && grid.ok(x, y - 6 * fy) && grid.ok(x, y + 6 * fy) && grid.ok(x - hw * 0.7, y + 4 * fy) && grid.ok(x + hw * 0.7, y + 4 * fy);
+  // one candidate: the line's centre C (world) and squeeze s; null if someone has nowhere to stand, else its score and marks
+  const tryAt = (C, s) => {
+    const w0 = winAt(C), pts = [];
+    let minC = 1e9, sum = 0;
+    for (let i = 0; i < all.length; i++) {
+      const b = all[i], x = C[0] + off[i][0] * s / zx, y = C[1] + off[i][1] * s / zy, sx = (x - w0[0]) * zx, sy = (y - w0[1]) * zy;
+      if (sx < 14 || sx > W - 14) return null;
+      if (isFlier(b)) { if (sy < 96 || sy > 262) return null; pts.push([sx, sy]); continue; }
+      if (sy < 108 || sy > 266 || !feet(x, y, half(b))) return null;
+      const cl = grid.clear(x, y) + 0.5 * grid.clear(x, y + 8 * fy); minC = Math.min(minC, cl); sum += Math.min(cl, 40);
+      pts.push([sx, sy]);
     }
-    return false;
+    const n = grounded.length || 1, cs = [(C[0] - w0[0]) * zx, (C[1] - w0[1]) * zy];
+    // (a move past 80 px costs more and more: a fight leaves the yard or the path it started on only when there is truly no room)
+    const dE = Math.hypot(C[0] - E[0], (C[1] - E[1]) * 1.3), far = Math.max(0, dE - 80);
+    const score = 4 * Math.min(minC, 10) + 0.25 * sum / n - 0.12 * dE - 0.002 * far * far - 30 * (1 - s) - 0.04 * Math.hypot(cs[0] - P0[0], cs[1] - P0[1]);
+    return { score, pts, win: w0, C };
   };
-  const apart = (pts, others) => pts.every(([x, y]) => others.every(([u, v]) => Math.abs(u - x) >= 40 || Math.abs(v - y) >= 20));
-  // 1. the whole battle line moved together (squeezed if need be); 2. else the party where it fits, then the enemies searched
-  // from just left of the party, so both sides share the same patch of ground (a yard, a path) and face each other
-  const all = [...B.enemies, ...B.party], keep = all.map(b => [b.x, b.y]), back = () => all.forEach((b, i) => { b.x = keep[i][0]; b.y = keep[i][1]; });
-  if (fit(all, () => true)) return;
-  back();
-  // 3. last resort, one at a time: each fighter to the nearest free spot on its own side
-  const placed = [];
-  const one = (b, lo, hi, home) => {
-    const x0 = b.x, y0 = b.y, h = half(b);
-    for (let r = 0; r <= 260; r += 4) { const n = r ? Math.max(8, Math.round(r / 3)) : 1;
-      for (let a = 0; a < n; a++) { const x = Math.round(x0 + Math.cos(a / n * 6.283) * r), y = Math.round(y0 + Math.sin(a / n * 6.283) * r * 0.6);
-        if (x < lo || x > hi || !feet(x, y, h) || !placed.every(([u, v]) => Math.abs(u - x) >= 34 || Math.abs(v - y) >= 18)) continue;
-        b.x = x; b.y = y; placed.push([x, y]); return; } }
-    b.x = home[0]; b.y = home[1]; placed.push(home);   // nowhere: its formation spot
+  const search = (E0, rad, squeezes) => {
+    let best = null;
+    for (const s of squeezes) for (let dy = -rad * 0.75; dy <= rad * 0.75; dy += 6) for (let dx = -rad; dx <= rad; dx += 6) {
+      if ((dx * dx) / (rad * rad) + (dy * dy) / (rad * rad * 0.5625) > 1) continue;
+      const r = tryAt([E0[0] + dx, E0[1] + dy], s); if (r && (!best || r.score > best.score)) best = r;
+    }
+    return best;
   };
-  // each one searched from the first of its side's new spot plus its formation offset, so a side stays together where it can
-  const chain = (list, lo, hi) => { const g = list.filter(b => !fly(b)); if (!g.length) return; const ox = g[0].x, oy = g[0].y;
-    g.forEach((b, i) => { const home = [b.x, b.y]; if (i) { b.x = g[0].x + (b.x - ox); b.y = g[0].y + (b.y - oy); } one(b, lo, typeof hi === 'function' ? hi() : hi, home); }); };
-  const singly = () => { back(); chain(B.party, 330, W - 8); B.enemies.filter(fly).forEach(e => placed.push([e.x, e.y])); chain(B.enemies, 8, () => Math.min(...B.party.map(p => p.x)) - 50); };
-  if (!fit(B.party, pts => pts.every(([x]) => x >= 250))) return singly();
-  const px = Math.min(...B.party.map(p => p.x)), py = B.party.reduce((t, p) => t + p.y, 0) / B.party.length, pp = B.party.map(p => [p.x, p.y]);
-  const foes = B.enemies.filter(e => !fly(e));
-  if (foes.length) {
-    const ex = foes.reduce((t, e) => t + e.x, 0) / foes.length, ey = foes.reduce((t, e) => t + e.y, 0) / foes.length;
-    const tx = Math.max(60, px - 140), ty = py;
-    foes.forEach(e => { e.x += tx - ex; e.y += ty - ey; });
-    if (!fit(B.enemies, pts => pts.every(([x]) => x <= px - 60) && apart(pts, pp))) singly();
+  let pick = null;
+  if (spot && (spot.party || spot.foes)) {   // an authored formation: everyone's own mark (scene px), the window round them
+    const wp = [...B.party.map((b, i) => spot.party && spot.party[i]), ...B.enemies.map((b, i) => spot.foes && spot.foes[i])];
+    const C = spot.at ? [spot.at[0] * K, spot.at[1] * K] : E, w0 = winAt(C);
+    pick = { win: w0, C, pts: all.map((b, i) => wp[i] ? [(wp[i][0] * K - w0[0]) * zx, (wp[i][1] * K - w0[1]) * zy] : [(C[0] + off[i][0] / zx - w0[0]) * zx, (C[1] + off[i][1] / zy - w0[1]) * zy]) };
   }
+  if (!pick && spot) {   // an authored place: searched close round it, squeezed down to its own `squeeze` (a crowded yard)
+    const lo = spot.squeeze || 0.55, sq = [1, 0.85, 0.7, 0.55, 0.45, 0.35].filter(v => v >= lo - 1e-6);
+    pick = search([spot.at[0] * K, spot.at[1] * K], (spot.rad || 40) * K, sq);
+  }
+  if (!pick) pick = search(E, RAD, [1, 0.85, 0.7, 0.55]);
+  if (!pick) pick = search(E, RAD * 1.6, [0.55, 0.45]);
+  if (!pick) { const w0 = winAt(E); pick = { win: w0, C: E, pts: all.map(b => [b.x, b.y]), fallback: true }; }   // nowhere: the default formation
+  all.forEach((b, i) => { b.x = Math.round(pick.pts[i][0]); b.y = Math.round(pick.pts[i][1]); });
+  const win = [pick.win[0], pick.win[1], vw, vh], iw = SC.img.width / SC.ww;
+  o.crop = win.map(v => v * iw);
+  // where everyone stood on the map (world px), for the transition: the hero where he was, the foe he met where it was, the rest
+  // coming in from the edges of the field view (companions from behind him, other foes from their side, fliers from above)
+  const c = SC.cam, cw = Math.min(W, SC.ww), ch = Math.min(H, SC.wh), toW = b => [win[0] + b.x / zx, win[1] + b.y / zy];
+  let lead = foe ? B.enemies.find(e => e.id === (f ? f.kind : npc.id)) || B.enemies[0] : null;
+  const from = new Map();
+  B.party.forEach((p, i) => from.set(p, i === 0 ? [h.x, h.y] : [Math.max(c.x, 0) + cw + 18 + i * 16, toW(p)[1]]));
+  B.enemies.forEach((e, i) => { const t = toW(e); from.set(e, e === lead ? [foe.x, foe.y] : isFlier(e) ? [t[0], Math.max(c.y, 0) - 30 - i * 12] : [Math.max(c.x, 0) - 18 - i * 16, t[1]]); });
+  B.stage = { z, zx, zy, win, E, C: pick.C, grid, from, lead, fallback: !!pick.fallback, view0: [c.x, c.y, cw, ch], spot: spot ? (spot.id || true) : null };
+}
+// a battle-screen point's ground test (tests, the Battle Lab): walkable, in the hero's area, clear of the foreground layer
+function battleGroundMap() {
+  const s = B.stage; if (!s) return null;
+  return (x, y) => s.grid.ok(s.win[0] + x / s.zx, s.win[1] + y / s.zy);
 }
 const alive = () => B.enemies.filter(e => e.alive);
 const up = p => p.m.hp > 0;
@@ -562,6 +638,7 @@ function standoffResolve(res) {
 
 function battleUpdate() {
   B.t++;
+  if (B.tr && B.tr.t < B.tr.len && !B.impact) B.tr.t++;
   if (B.impact > 0) B.impact--;
   timingInput();
   if (B.stop > 0) { B.stop--; return; }   // hitstop: the world holds still for a few frames
@@ -591,7 +668,7 @@ function battleUpdate() {
   const p = actor(), m = p && p.m;
   switch (B.phase) {
     case 'standoff': standoffUpdate(); break;
-    case 'intro': if (B.t > 45 || btn('a')) beginRound(); break;
+    case 'intro': if (B.t > (B.tr ? B.tr.len + 18 : 45) || btn('a')) { if (B.tr) B.tr.t = B.tr.len; beginRound(); } break;
     case 'cmd': {
       const commands = battleCommands(), n = commands.length;
       if (nav('up')) { B.sel = (B.sel + n - 1) % n; sfx('cursor'); }
