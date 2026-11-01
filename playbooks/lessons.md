@@ -50,3 +50,9 @@ What the job built: `battleStage` (the fight's camera window and everyone's mark
    camera moves from the field view: lerp the window and every fighter's world position together and scale the sprites with the zoom.
    A full-screen flash or wipe over the first frames hides exactly the continuity it is meant to show.
 6. **Check the layers a scene draws behind its painting.** A battle backdrop that copies only the painting leaves a parallax sky black.
+7. **Don't anchor on the meeting point where the camera cannot move.** In a one-screen room the anchor only slides the whole line across a
+   fixed picture (the great hall's party ended up against the right wall and its boss in the middle). Anchor on the formation's own
+   place along any axis the window cannot travel.
+8. **Every placement should say what it is.** Rules, an authored spot, hand marks or a fallback: report it (`battlePlacement()`), show
+   it on the review page, and give hand placement an editor on the real fight (real backdrop, real scale, the ground map shown), so a
+   bad spot is fixed by dragging, not by guessing coordinates.

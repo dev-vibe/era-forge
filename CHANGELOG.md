@@ -10,6 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.2.6 (1 Nov 2026) | `PENDING` | no | how a fight was placed (`battlePlacement()`: placed / spot / rules / fallback / fixed), the battle spot editor (07e), `opts.spot`, a spot's `view`; one-screen rooms keep the centred formation |
 | 0.2.5 (1 Nov 2026) | `2f8bf8edecee8dcf590b0f0528a0e3e039184cbc` | no (optional: `battleSpots`, `foeNpc`, `GAME.battle.heroK`) | a fight on its own scene zooms to the scene's scale, stands where the two sides met (scored placement), walks everyone onto their marks, draws the scene's sky layers |
 | 0.2.4 (31 Oct 2026) | `f1bb9dedc41582b3c6baea2ae719f57e234113e0` | no | an animation category's engine-test link may point at a review page (`/review/<key>/`) |
 | 0.2.3 (31 Oct 2026) | `9e60c67f24a8adf671d04acb0610531c626e1353` | no | the water sparkle takes a painted mask (and match, density, strength, sun, loop, speed), so any painting can sparkle only on its water, seamlessly |
@@ -17,6 +18,35 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.2.6 (1 Nov 2026, commit `PENDING`)
+
+Ronin job battle-place, second part. Ash, 1 Nov 2026: "gonzo is worse now though, bc the chars are weirdly far to the right", then "the
+engine should have a way to determine if the battle is a manually placed battle or one that uses the rules engine for placement, along
+with an editor for those that are hand placed".
+
+- **One-screen rooms keep the formation's own composition.** Along an axis where the fight's window cannot move (the painting is no
+  bigger than the window), the rules anchor the line on the default formation's place instead of where the sides met: the meeting
+  point would only slide the whole line across a fixed picture. Where the camera can travel, the meeting point anchors as in 0.2.5.
+- **How a fight was placed:** `battlePlacement()` returns `{ mode, spot }`: `placed` (a `battleSpots` entry with its own `party` /
+  `foes` marks: hand-placed), `spot` (the rules round an authored spot without marks), `rules` (the rules round where the sides met,
+  or the room's composition), `fallback` (no room anywhere: the default formation) or `fixed` (a fight on its own painting). Also on
+  `B.stage.mode`.
+- **`opts.spot`** (a story battle step's `spot: '<battleSpots id>'`) names the spot a fight uses; `spot: false` keeps it to the rules.
+  A spot may carry `view: [x, y]` (the window's top-left, scene px), which the editor writes.
+- **The battle spot editor** (`kits/battle-turn/07e_battle_spot_editor.js`): `spotEditStart()` on a fight on a painted scene holds
+  the fight and lets the author drag the fighters on the real backdrop at the real scale (arrow keys nudge, Shift 8 px), drag open
+  ground to move the camera, and see the stage's ground map (green: feet can stand there) and a ring per fighter (green on good ground,
+  red off it). Try it writes the spot into `SC.def.battleSpots` (in memory) and restages the fight from it; Use the rules here drops
+  it; Copy JSON gives the scene file's entry `{ id, at, view, near | r, when?, party, foes }`; Done hands the fight back. A game's
+  battle review page opens it (Ronin: the Battle Lab's Edit placement button); the game itself never does. The battle mode's update
+  and UI hand over to it while it is on.
+
+### What a game must change
+
+Nothing. A game that wants the editor puts a button for `spotEditStart()` on its battle review page and pastes the JSON into its scene
+file. Fights in one-screen rooms now stand where the default formation stands (when the ground allows), whatever side the hero met
+the foe from.
 
 ## 0.2.5 (1 Nov 2026, commit `2f8bf8e`)
 

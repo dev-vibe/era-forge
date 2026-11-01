@@ -161,10 +161,11 @@ function battleStage(o) {
   const npc = f ? null : (o.foeNpc && scNpc(o.foeNpc)) || B.enemies.map(e => scNpc(e.id)).find(Boolean) || null;
   const foe = f || npc;
   let E = foe ? [(h.x + foe.x) / 2, (h.y + foe.y) / 2] : [h.x, h.y];
-  // an authored spot: the content's opts.at (scene px), else the scene's battleSpots entry whose r holds E, else the nearest within its `near`
+  // an authored spot: the one the content names (opts.spot, a battleSpots id), else opts.at (scene px), else the scene's battleSpots entry
+  // whose r holds E, else the nearest within its `near`
   const K = SC.k || 1;
-  let spot = o.at ? { at: o.at } : null;
-  if (!spot) { let best = 1e9; for (const s of SC.def.battleSpots || []) {
+  let spot = (o.spot && (SC.def.battleSpots || []).find(s => s.id === o.spot)) || (o.at ? { at: o.at } : null);
+  if (!spot && o.spot !== false) { let best = 1e9; for (const s of SC.def.battleSpots || []) {
     if (!scTrigOn(s)) continue;
     const inR = s.r && scIn(s.r, E[0], E[1]), d = Math.hypot(s.at[0] * K - E[0], s.at[1] * K - E[1]);
     if ((inR || d <= (s.near || 200) * K) && (inR ? -1 : d) < best) { best = inR ? -1 : d; spot = s; } } }
@@ -173,8 +174,14 @@ function battleStage(o) {
   const P0 = [grounded.reduce((t, b) => t + b.x, 0) / grounded.length, grounded.reduce((t, b) => t + b.y, 0) / grounded.length];
   const off = all.map(b => [b.x - P0[0], b.y - P0[1]]);
   const winAt = C => [vw >= SC.ww ? (SC.ww - vw) / 2 : clamp(C[0] - P0[0] / zx, 0, SC.ww - vw), vh >= SC.wh ? (SC.wh - vh) / 2 : clamp(C[1] - P0[1] / zy, 0, SC.wh - vh)];
+  // the anchor the rules stand the line round: where the sides met, except along an axis where the window cannot move (a room that is one
+  // screen): there the meeting point would only slide the whole line across a fixed picture, so the line keeps the formation's own place
+  // on screen (Ash, 1 Nov 2026, a boss fight in a one-screen hall: "the chars are weirdly far to the right", the boss "almost in the center")
+  const A = E.slice();
+  if (vw >= SC.ww) A[0] = (SC.ww - vw) / 2 + P0[0] / zx;
+  if (vh >= SC.wh) A[1] = (SC.wh - vh) / 2 + P0[1] / zy;
   const RAD = 260;
-  const grid = stageGrid(E[0] - RAD - 360 / zx, E[1] - RAD * 0.75 - 200 / zy, E[0] + RAD + 360 / zx, E[1] + RAD * 0.75 + 140 / zy);
+  const grid = stageGrid(A[0] - RAD - 360 / zx, A[1] - RAD * 0.75 - 200 / zy, A[0] + RAD + 360 / zx, A[1] + RAD * 0.75 + 140 / zy);
   const half = b => (b.m ? 12 : (b.d.scale ? 22 : 14)) / zx, fy = 1 / zy;
   const feet = (x, y, hw) => grid.ok(x, y) && grid.ok(x - hw, y) && grid.ok(x + hw, y) && grid.ok(x, y - 6 * fy) && grid.ok(x, y + 6 * fy) && grid.ok(x - hw * 0.7, y + 4 * fy) && grid.ok(x + hw * 0.7, y + 4 * fy);
   // one candidate: the line's centre C (world) and squeeze s; null if someone has nowhere to stand, else its score and marks
@@ -191,31 +198,36 @@ function battleStage(o) {
     }
     const n = grounded.length || 1, cs = [(C[0] - w0[0]) * zx, (C[1] - w0[1]) * zy];
     // (a move past 80 px costs more and more: a fight leaves the yard or the path it started on only when there is truly no room)
-    const dE = Math.hypot(C[0] - E[0], (C[1] - E[1]) * 1.3), far = Math.max(0, dE - 80);
+    const dE = Math.hypot(C[0] - anc[0], (C[1] - anc[1]) * 1.3), far = Math.max(0, dE - 80);
     const score = 4 * Math.min(minC, 10) + 0.25 * sum / n - 0.12 * dE - 0.002 * far * far - 30 * (1 - s) - 0.04 * Math.hypot(cs[0] - P0[0], cs[1] - P0[1]);
     return { score, pts, win: w0, C };
   };
+  let anc = A;   // what a candidate is scored against: the search's own centre
   const search = (E0, rad, squeezes) => {
-    let best = null;
+    let best = null; anc = E0;
     for (const s of squeezes) for (let dy = -rad * 0.75; dy <= rad * 0.75; dy += 6) for (let dx = -rad; dx <= rad; dx += 6) {
       if ((dx * dx) / (rad * rad) + (dy * dy) / (rad * rad * 0.5625) > 1) continue;
       const r = tryAt([E0[0] + dx, E0[1] + dy], s); if (r && (!best || r.score > best.score)) best = r;
     }
     return best;
   };
-  let pick = null;
-  if (spot && (spot.party || spot.foes)) {   // an authored formation: everyone's own mark (scene px), the window round them
+  let pick = null, mode = 'rules';
+  if (spot && (spot.party || spot.foes)) {   // hand-placed (the battle spot editor writes these, 07e)
+    mode = 'placed';   // an authored formation: everyone's own mark (scene px), the window round them
     const wp = [...B.party.map((b, i) => spot.party && spot.party[i]), ...B.enemies.map((b, i) => spot.foes && spot.foes[i])];
+    // the window: the spot's own `view` (its top-left, scene px, as the editor saves it), else round `at` as the formation would sit
     const C = spot.at ? [spot.at[0] * K, spot.at[1] * K] : E, w0 = winAt(C);
+    if (spot.view) { if (vw < SC.ww) w0[0] = clamp(spot.view[0] * K, 0, SC.ww - vw); if (vh < SC.wh) w0[1] = clamp(spot.view[1] * K, 0, SC.wh - vh); }
     pick = { win: w0, C, pts: all.map((b, i) => wp[i] ? [(wp[i][0] * K - w0[0]) * zx, (wp[i][1] * K - w0[1]) * zy] : [(C[0] + off[i][0] / zx - w0[0]) * zx, (C[1] + off[i][1] / zy - w0[1]) * zy]) };
   }
-  if (!pick && spot) {   // an authored place: searched close round it, squeezed down to its own `squeeze` (a crowded yard)
+  if (!pick && spot) {   // an authored place without marks: the rules, searched close round it, squeezed down to its own `squeeze` (a crowded yard)
+    mode = 'spot';
     const lo = spot.squeeze || 0.55, sq = [1, 0.85, 0.7, 0.55, 0.45, 0.35].filter(v => v >= lo - 1e-6);
     pick = search([spot.at[0] * K, spot.at[1] * K], (spot.rad || 40) * K, sq);
   }
-  if (!pick) pick = search(E, RAD, [1, 0.85, 0.7, 0.55]);
-  if (!pick) pick = search(E, RAD * 1.6, [0.55, 0.45]);
-  if (!pick) { const w0 = winAt(E); pick = { win: w0, C: E, pts: all.map(b => [b.x, b.y]), fallback: true }; }   // nowhere: the default formation
+  if (!pick) { mode = 'rules'; pick = search(A, RAD, [1, 0.85, 0.7, 0.55]); }
+  if (!pick) pick = search(A, RAD * 1.6, [0.55, 0.45]);
+  if (!pick) { mode = 'fallback'; const w0 = winAt(A); pick = { win: w0, C: A, pts: all.map(b => [b.x, b.y]), fallback: true }; }   // nowhere: the default formation
   all.forEach((b, i) => { b.x = Math.round(pick.pts[i][0]); b.y = Math.round(pick.pts[i][1]); });
   const win = [pick.win[0], pick.win[1], vw, vh], iw = SC.img.width / SC.ww;
   o.crop = win.map(v => v * iw);
@@ -226,8 +238,12 @@ function battleStage(o) {
   const from = new Map();
   B.party.forEach((p, i) => from.set(p, i === 0 ? [h.x, h.y] : [Math.max(c.x, 0) + cw + 18 + i * 16, toW(p)[1]]));
   B.enemies.forEach((e, i) => { const t = toW(e); from.set(e, e === lead ? [foe.x, foe.y] : isFlier(e) ? [t[0], Math.max(c.y, 0) - 30 - i * 12] : [Math.max(c.x, 0) - 18 - i * 16, t[1]]); });
-  B.stage = { z, zx, zy, win, E, C: pick.C, grid, from, lead, fallback: !!pick.fallback, view0: [c.x, c.y, cw, ch], spot: spot ? (spot.id || true) : null };
+  B.stage = { z, zx, zy, win, E, A, P0, C: pick.C, grid, from, lead, mode, fallback: !!pick.fallback, view0: [c.x, c.y, cw, ch], spot: spot ? (spot.id || true) : null };
 }
+// how this fight was placed (tests, the Battle Lab, the battle spot editor): { mode, spot } with mode 'placed' (a battleSpots entry's own
+// marks), 'spot' (the rules round an authored spot), 'rules' (the rules round where the sides met), 'fallback' (no room anywhere: the
+// default formation) or 'fixed' (a fight on its own painting: the kit's fixed formation)
+function battlePlacement() { const s = B.stage; return s ? { mode: s.mode, spot: s.spot } : { mode: 'fixed', spot: null }; }
 // a battle-screen point's ground test (tests, the Battle Lab): walkable, in the hero's area, clear of the foreground layer
 function battleGroundMap() {
   const s = B.stage; if (!s) return null;

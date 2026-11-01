@@ -462,4 +462,4 @@ function drawTechTag(tg) { themeUI('techTag')(tg); }
 function drawCutIn(c) { themeUI('cutIn')(c, cutinLen()); }
 
 // Job fw-F2: the turn-based battle kit's mode
-defineMode('battle', { kit: 'battle-turn', update: () => battleUpdate(), art: () => drawBattle(), ui: () => drawBattleUI() });
+defineMode('battle', { kit: 'battle-turn', update: () => SPOT_EDIT.on ? spotEditUpdate() : battleUpdate(), art: () => drawBattle(), ui: () => { if (SPOT_EDIT.on) spotEditGround(); drawBattleUI(); if (SPOT_EDIT.on) spotEditDraw(); } });   // the battle spot editor holds the fight (07e)
