@@ -10,7 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
-| 0.2.7 (1 Nov 2026) | `PENDING` | no | the battle spot editor's Save writes the spot into the game's own scene file (folder access, remembered; a download where a browser has none); "every fight in this scene" |
+| 0.2.7 (1 Nov 2026) | `54ecf8fd7f6baab343847dd8053d561d617e11f7` | no | the battle spot editor's Save writes the spot into the game's own scene file (folder access, remembered; a download where a browser has none); "every fight in this scene" |
 | 0.2.6 (1 Nov 2026) | `64e4f7f25efcc08278af0008ebdf29a22cce2b38` | no | how a fight was placed (`battlePlacement()`: placed / spot / rules / fallback / fixed), the battle spot editor (07e), `opts.spot`, a spot's `view`; one-screen rooms keep the centred formation |
 | 0.2.5 (1 Nov 2026) | `2f8bf8edecee8dcf590b0f0528a0e3e039184cbc` | no (optional: `battleSpots`, `foeNpc`, `GAME.battle.heroK`) | a fight on its own scene zooms to the scene's scale, stands where the two sides met (scored placement), walks everyone onto their marks, draws the scene's sky layers |
 | 0.2.4 (31 Oct 2026) | `f1bb9dedc41582b3c6baea2ae719f57e234113e0` | no | an animation category's engine-test link may point at a review page (`/review/<key>/`) |
@@ -20,7 +20,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
 
-## 0.2.7 (1 Nov 2026, commit `PENDING`)
+## 0.2.7 (1 Nov 2026, commit `54ecf8f`)
 
 Ronin job battle-place. Ash, 1 Nov 2026: "i should just be able to save it in the editor, no?", then "save, but in a place apps normally
 save stuff. rememer, this needs to be solved for any user building games with this framework".
