@@ -27,7 +27,11 @@ function spotEditStart() {
     id: sp ? sp.id : SPOT_EDIT.id && SPOT_EDIT.scene === SC.id ? SPOT_EDIT.id : `${SC.id}_${B.enemies[0] ? B.enemies[0].id : 'fight'}`,
     near: sp && sp.near || 200, r: sp && sp.r || null, when: sp && sp.when || null, scene: SC.id });
   if (B.tr) B.tr.t = B.tr.len;   // the walk onto the marks is over: everyone stands on their mark
-  B.impact = 0; B.stop = 0; B.q = []; B.tm = null;
+  // a boss's standoff (its ink wash) and the opening slide-in are skipped too: the fight is held still, so a slide frozen at its start
+  // would leave everyone off screen (B.t no longer moves while editing)
+  if (B.so) { B.so = null; B.ink = 0; B.phase = 'intro'; }
+  if (B.phase === 'intro') B.t = Math.max(B.t, 22);
+  B.impact = 0; B.stop = 0; B.q = []; B.tm = null; B.wipe = 40;
   spotEditPanel();
   return true;
 }
