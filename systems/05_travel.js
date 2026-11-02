@@ -11,6 +11,11 @@
 //        notice }   { flag, lines }: a script shown once, the first time the map opens with the place unlocked (it is then selected)
 //    content('atlas'): the map's look { links: [[a, b]...], xy(l) -> [x, y], cleared(l), back(), node(l, state, x, y), hero(),
 //      mark(x, y), front(), stamps: { cleared, active, soon, locked } -> [label, colour] }. game.json world: name, era, music, sealed, notBuilt.
+//      Optional (Eraforge 0.3.1): place(l, state, x, y, selected) draws a place itself (instead of the glow, shadow
+//      and node), link(x1, y1, x2, y2, open) a link, heroAt(x, y) the hero (travelPin(x, y) is the road's pin), and the zoom between the
+//      map and a journey: zoomRect(routeId) -> [x, y, w, h], where on the map (logical px; the screen's shape, h follows w) the journey's own map art sits, and
+//      veil(alpha) the cover drawn while one picture turns into the other (default: a paper-coloured fade). With zoomRect the map
+//      zooms into the journey's map when one starts (travelZoom) and a game can zoom back out when one ends (travelZoom('out', ...)).
 //  THE ROAD ('road' mode). content('routes'): journeys made of stations (stops) and legs (travel between them), by id
 //      { version,      a journey saved with another version starts again
 //        stations,     [{ id, name, at: [x, y] (0..1 on the map art), art, next, day, night, branch, departLabel, onLeave() -> steps | null,
@@ -41,11 +46,16 @@ const locById = id => travelLocs().find(l => l.id === id);
 const locOpen = l => travelCond(l.req);
 const locXY = l => travelAtlas().xy(l);
 function openWorld(skipRoad = false) {
-  if (!skipRoad) { const id = Object.keys(travelRoutes()).find(id => roadCanStart(id) && travelCond(travelRoute(id).autoStart)); if (id) { startRoad(id); return; } }
-  G.state = 'world'; G.map = null; playMusic(GAME.world.music); G.worldInfo = 0;
+  if (!skipRoad) { const id = Object.keys(travelRoutes()).find(id => roadCanStart(id) && travelCond(travelRoute(id).autoStart)); if (id) {
+    if (!travelZooms(id)) { startRoad(id); return; }
+    worldShow(); G.worldSel = travelLocs().find(l => l.route === id)?.id || G.worldSel;
+    travelZoom('in', id, () => startRoad(id), TZ.look); return;   // the map for a moment, then into the journey
+  } }
+  worldShow();
   const l = travelLocs().find(l => l.notice && locOpen(l) && !G.f[l.notice.flag]);
   if (l) { G.f[l.notice.flag] = 1; G.worldSel = l.id; run(l.notice.lines); }
 }
+function worldShow() { G.state = 'world'; G.map = null; playMusic(GAME.world.music); G.worldInfo = 0; }
 function travelEnter(l) {
   const e = l.entry || {}, sc = e.scene && SCENES[e.scene];
   if (sc && assetImg(sc.img)) enterScene(e.scene, e.at); else if (e.map) enterMap(...e.map);
@@ -66,7 +76,7 @@ function worldUpdate() {
     if (!locOpen(l)) { sfx('deny'); run([['', say(GAME.world.sealed)]]); return; }
     if (l.route && roadCanStart(l.route)) {
       const ask = travelRoute(l.route).ask;
-      run([{ ask: ask.q, opts: [ask.yes, ask.no], then: [[() => warp(() => startRoad(l.route))], []] }]); return;
+      run([{ ask: ask.q, opts: [ask.yes, ask.no], then: [[() => travelZooms(l.route) ? travelZoom('in', l.route, () => startRoad(l.route)) : warp(() => startRoad(l.route))], []] }]); return;
     }
     if (!l.built) { sfx('deny'); run([['', say(GAME.world.notBuilt)]]); return; }
     sfx('ok'); G.lastLoc = l.id;
@@ -80,18 +90,21 @@ function drawWorld() {
   A.back();
   for (const [a, b] of A.links) {
     const [x1, y1] = locXY(locById(a)), [x2, y2] = locXY(locById(b));
+    if (A.link) { A.link(x1, y1, x2, y2, locOpen(locById(b))); continue; }
     const n = Math.max(2, Math.floor(Math.hypot(x2 - x1, y2 - y1) / 4)), open = locOpen(locById(b));
     for (let i = 1; i < n; i++) { if (i % 2) continue; const x = Math.round(x1 + (x2 - x1) * i / n), y = Math.round(y1 + (y2 - y1) * i / n); L.fillStyle = open ? '#fff4d8' : 'rgba(40,30,20,.5)'; L.fillRect(x, y, 2, 2); if (open) { L.fillStyle = 'rgba(0,0,0,.3)'; L.fillRect(x + 1, y + 2, 2, 1); } }
   }
   for (const l of locs) {
     const [x, y] = at(l), sel = l.id === G.worldSel, st = locState(l);
+    if (A.place) { A.place(l, st, x, y, sel); continue; }
     if (sel) { L.globalCompositeOperation = 'lighter'; L.globalAlpha = 0.5 + Math.sin(frame / 8) * 0.2; L.drawImage(glowSprite(18, st === 'locked' ? '#8080a0' : '#ffc070'), x - 18, y - 22); L.globalAlpha = 1; L.globalCompositeOperation = 'source-over'; }
     L.drawImage(shadowSprite(18, 6), x - 9, y - 1);
     A.node(l, st, x, y);
   }
   // the hero, small, standing just above his current place so he never hides a neighbouring node
-  const hs = A.hero(), [hmx, hmy] = at(locById(G.lastLoc));
-  L.drawImage(shadowSprite(12, 4), hmx + 6, hmy - 20); L.drawImage(hs, hmx + 12 - (hs.width >> 1), hmy - 18 - hs.height);
+  const [hmx, hmy] = at(locById(G.lastLoc));
+  if (A.heroAt) A.heroAt(hmx, hmy);
+  else { const hs = A.hero(); L.drawImage(shadowSprite(12, 4), hmx + 6, hmy - 20); L.drawImage(hs, hmx + 12 - (hs.width >> 1), hmy - 18 - hs.height); }
   // newly opened places bob a marker
   for (const l of locs) { if (!locOpen(l) || A.cleared(l) || l.id === G.lastLoc) continue; const [x, y] = at(l); A.mark(x, y - 24 + Math.round(Math.sin(frame / 8) * 2)); }
   A.front();
@@ -270,13 +283,17 @@ function drawRoad() {
   stations.forEach(s => { L.fillStyle = r.visited.includes(s.id) ? '#c9432f' : '#665340'; L.beginPath(); L.arc(s.at[0] * W, s.at[1] * H, 3, 0, Math.PI * 2); L.fill(); });
   const a = roadStationById(r.leg ? r.leg.from : r.station).at, b = roadStationById(r.leg ? r.leg.to : r.station).at, t = r.leg ? r.leg.progress : 0;
   const mx = (a[0] + (b[0] - a[0]) * t) * W, my = (a[1] + (b[1] - a[1]) * t) * H;
-  // A map pin is UI: its point stays on the route, while the pale backing separates the sheet from the busy painting.
-  L.fillStyle = '#f6e6c3'; L.strokeStyle = '#2e211b'; L.lineWidth = 2; L.beginPath(); L.arc(mx, my - 21, 23, 0, Math.PI * 2); L.fill(); L.stroke();
-  L.strokeStyle = '#b63d2c'; L.lineWidth = 2; L.beginPath(); L.arc(mx, my - 21, 26 + Math.sin(Road.t / 20) * 1.5, 0, Math.PI * 2); L.stroke();
-  L.fillStyle = '#b63d2c'; L.beginPath(); L.moveTo(mx - 5, my - 2); L.lineTo(mx, my + 5); L.lineTo(mx + 5, my - 2); L.fill();
-  const spr = castSprite(heroCastId(), 2, r.leg ? [0, 1, 0, 3][Math.floor(Road.t / 10) % 4] : 0);
-  if (spr) L.drawImage(spr, mx - 17, my - 42, 34, 40);
+  travelPin(mx, my, Road.t, !!r.leg);
   Road.marker = { x: mx, y: my };
+}
+// The hero's pin on a painted map: its point stays on the spot, while the pale backing separates the sheet from the busy painting.
+// The road draws it; a map of the travel system can draw the same one (atlas.heroAt).
+function travelPin(mx, my, t = frame, walking = false) {
+  L.fillStyle = '#f6e6c3'; L.strokeStyle = '#2e211b'; L.lineWidth = 2; L.beginPath(); L.arc(mx, my - 21, 23, 0, Math.PI * 2); L.fill(); L.stroke();
+  L.strokeStyle = '#b63d2c'; L.lineWidth = 2; L.beginPath(); L.arc(mx, my - 21, 26 + Math.sin(t / 20) * 1.5, 0, Math.PI * 2); L.stroke();
+  L.fillStyle = '#b63d2c'; L.beginPath(); L.moveTo(mx - 5, my - 2); L.lineTo(mx, my + 5); L.lineTo(mx + 5, my - 2); L.fill();
+  const spr = castSprite(heroCastId(), 2, walking ? [0, 1, 0, 3][Math.floor(t / 10) % 4] : 0);
+  if (spr) L.drawImage(spr, mx - 17, my - 42, 34, 40);
 }
 function roadWrap(body, x, y, width, size, color = UI.ink) { wrap(body, width, size).forEach((ln, i) => txt(ln, x, y + i * (size + 5), color, size)); }
 function drawRoadUI() {
@@ -310,8 +327,60 @@ function drawRoadWalkUI() {
   win(12, 12, 250, 38); txt(SC.def.name, 24, 20, UI.ink, 12); txt('Next: ' + roadStationById(roadState().leg?.to)?.name + ' · ' + roadText('walkNext'), 24, 37, '#725843', 10);
 }
 
+// ---------------- The zoom between the map and a journey (Eraforge 0.3.1) ----------------
+// 'in': the map (held TZ.look frames when asked), then it zooms toward atlas.zoomRect(route) while the veil rises; under the full veil the
+// journey's own map art takes its place, and the veil clears. 'out': the veil rises over the last picture, the map comes back zoomed in
+// on the journey's rect and zooms out as the veil clears. Then `then` runs (startRoad, openWorld). No input meanwhile; nothing is saved.
+const TZ = { look: 50, zoom: 72, cover: 26, clear: 40 };
+const Zoom = { z: null };
+const travelZooms = id => !!travelAtlas().zoomRect && !!travelRoute(id) && roadReady(id);
+function travelZoom(dir, id, then, hold = 0) {
+  const A = travelAtlas(), rect = A.zoomRect ? A.zoomRect(id) : null, route = travelRoute(id);
+  if (!rect || !route) { warp(then); return; }
+  let snap = null;
+  if (dir === 'out') { snap = document.createElement('canvas'); snap.width = lo.width; snap.height = lo.height; snap.getContext('2d').drawImage(lo, 0, 0); }
+  Zoom.z = { dir, id, rect, then, hold, snap, t: 0, map: route.map };
+  G.state = 'travelzoom';
+}
+const tzEase = p => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+function travelZoomLength(z) { return z.dir === 'in' ? z.hold + TZ.zoom + TZ.clear : TZ.cover + TZ.zoom; }
+function travelZoomUpdate() {
+  const z = Zoom.z; if (!z) return;
+  if (++z.t >= travelZoomLength(z)) { Zoom.z = null; z.then(); }
+}
+// The map drawn as if the screen showed only part of it: e = 0 the whole map, e = 1 just the rect.
+function tzWorld(z, e) {
+  const A = travelAtlas(), [rx, ry, rw] = z.rect, w = W * Math.pow(rw / W, e), s = W / w;
+  const x0 = rw >= W ? 0 : rx * (W - w) / (W - rw), y0 = ry * (W - w) / Math.max(1, W - rw);
+  L.save(); L.setTransform(D * s, 0, 0, D * s, -x0 * s * D, -y0 * s * D); L.imageSmoothingEnabled = true; L.imageSmoothingQuality = 'high';
+  A.back(); L.restore(); L.imageSmoothingEnabled = false;
+  if (A.heroAt && G.lastLoc && locById(G.lastLoc)) { const [hx, hy] = locXY(locById(G.lastLoc)); A.heroAt((hx - x0) * s, (hy - y0) * s); }
+}
+function tzVeil(a) {
+  if (a <= 0) return; const A = travelAtlas();
+  if (A.veil) { A.veil(Math.min(1, a)); return; }
+  L.globalAlpha = Math.min(1, a); L.fillStyle = '#e8dcc0'; L.fillRect(0, 0, W, H); L.globalAlpha = 1;
+}
+function tzJourneyMap(z, p) {
+  const im = assetImg(z.map), k = 1 + 0.06 * (1 - p); L.fillStyle = '#e4d0a0'; L.fillRect(0, 0, W, H);
+  if (im) { L.imageSmoothingEnabled = true; L.drawImage(im, (W - W * k) / 2, (H - H * k) / 2, W * k, H * k); L.imageSmoothingEnabled = false; }
+}
+function drawTravelZoom() {
+  const z = Zoom.z; if (!z) { L.fillStyle = '#000'; L.fillRect(0, 0, W, H); return; }
+  if (z.dir === 'in') {
+    const t = z.t - z.hold;
+    if (t < 0) { drawWorld(); return; }
+    if (t < TZ.zoom) { const p = t / TZ.zoom; tzWorld(z, tzEase(p)); tzVeil((p - 0.45) / 0.5); return; }
+    const p = (t - TZ.zoom) / TZ.clear; tzJourneyMap(z, p); tzVeil(1 - p); return;
+  }
+  if (z.t < TZ.cover) { if (z.snap) L.drawImage(z.snap, 0, 0, W, H); tzVeil(z.t / TZ.cover); return; }
+  const p = (z.t - TZ.cover) / TZ.zoom; tzWorld(z, 1 - tzEase(p)); tzVeil(1 - p / 0.55);
+}
+
 // ---------------- Modes and saves ----------------
 defineMode('world', { system: 'travel', update: () => worldUpdate(), art: () => drawWorld(), ui: () => drawWorldUI() });
+defineMode('travelzoom', { system: 'travel', update: () => travelZoomUpdate(), art: () => drawTravelZoom(),
+  ui: () => { const z = Zoom.z; if (z && z.dir === 'in' && z.t < z.hold) drawWorldUI(); } });   // the place's panel while the map is held
 defineMode('road', { system: 'travel', update: () => roadUpdate(), art: () => drawRoad(), ui: () => { drawRoadUI(); if (typeof drawCine === 'function') drawCine(); } });
 defineSaveSpace('travel', {
   init: travelInit,
