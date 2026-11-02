@@ -13,7 +13,8 @@ engine and the game's content never draw that look themselves, they ask the them
 
 - **`theme.json`, the tokens.** `colors` (the engine reads them as `UI.<name>`: `ink`, `soft`, `faint`, `seal` (the accent), `sealHi`,
   `sealDk`, `ochre`, `indigo`, `plum`, `cream`, `paper`, `outline`; every theme has the same names), `fonts` (`body` and `head` CSS stacks,
-  `links` = the stylesheets the page loads, `preload` = `[font, sample text]` pairs the boot waits for), `sizes` (`dialog`). The build injects
+  `links` = the stylesheets the page loads, `preload` = `[font, sample text]` pairs the boot waits for), `sizes` (`dialog`; since 0.3.0 also `dialogLine` = the dialogue's line pitch, `subtitle` = subtitles under the letterbox, `help` =
+  the menu's help line, `command` = the battle commands, each optional with the old size as default). The build injects
   it as `THEME_DEF` and puts the font links where `core/shell.html` says `<!--THEME_FONTS-->`. A game's own theme lives in its repo's
   `themes/<id>/`; the framework's (`plain`) are in this folder; both are found by id.
 - **`*.js`, the code.** The build puts these files right after the core (`core/01*.js`), so only a game that uses the theme has its helpers.
@@ -21,7 +22,8 @@ engine and the game's content never draw that look themselves, they ask the them
   `THEME_FX.default` for any effect type without a drawer. The widgets and their arguments are listed in `THEME_WIDGETS`
   (`core/01a_game.js`, section 8): panel, selBar, text, mark, bubble, banner, gauge, stroke, page, stamp, liberation, cutIn, techTag,
   titleLockup, artWash, enso, battleBackdrop, battleImpact, battleSil, battleWipe, standoffWind, loading, scrollRails, scrollRods,
-  rhythmNote, rhythmRing (the minigame kit's rhythm lane: a falling note and the closing timing ring, job fw-F5a).
+  rhythmNote, rhythmRing (the minigame kit's rhythm lane: a falling note and the closing timing ring, job fw-F5a), keyCap and emphasis
+  (marked text: the box behind a key's name and the one highlight's colour and weight, Ronin job text-pass, 0.3.0).
   A theme must register every one (the test checks both themes).
 - **`art/`, the images.** Loaded as `theme_<file name>` and read with `themeArt(name)` (Ronin: `title_washi_backing.png`, the generated kozo
   paper behind the title lockup, made by Ronin's `tools/make_title_art.py`; plain: `mark.png`). A game theme's art is made like any other art
@@ -34,6 +36,11 @@ Engine and content code draw with the core's wrappers in `core/01_core.js` (and 
 `selBar`, `txt` (the theme picks the colour of text on a panel), `headTxt`, `uiMark`, `cursor`, `moreMark`, `uiBubble`, `uiBanner`, `gauge`,
 `uiStroke`, `uiPage`, `uiStamp`, `uiArtWash`, `frontMenu`; `drawCutIn`, `drawTechTag` and the battle's effect loop (`drawBattleFx`,
 `drawSignatureFx` in `kits/battle-turn/07d_battle_fx.js`) ask the theme too. Colours come from `UI.*`, never a literal of the theme's palette.
+
+**Marked text** (0.3.0): every string the player reads may carry `[[words]]` (the game's one highlight: names of people, places and story
+items, drawn in the theme's `emphasis` colour and weight) and `{a}` `{b}` `{start}` `{up}` `{down}` `{left}` `{right}` (a key cap with that key's
+name in the player's control scheme, drawn on the theme's `keyCap`); `{move}` and `{moveKeys}` are the movement keys' names as words.
+`txt`, `txtW` and `wrap` read it; `headTxt` shows it plain. The dialogue box pages at sentence ends (`pageText` in `core/05_field.js`).
 
 Which effects a battle moment starts, where and in what colour (the recipes in `07d_battle_fx.js`) stay with the battle kit; the theme
 only draws them.

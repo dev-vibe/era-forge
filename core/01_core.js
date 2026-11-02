@@ -417,6 +417,7 @@ function selBar(x, y, w, h) { themeUI('selBar')(x, y, w, h); }   // under the ch
 const uiPanelAt = (x, y) => { for (let i = UI_PANELS.length - 1; i >= 0; i--) { const p = UI_PANELS[i]; if (x >= p.x && x <= p.x + p.w && y >= p.y - 2 && y <= p.y + p.h) return p; } return null; };
 function setFont(size, head) { X.font = head ? `700 ${Math.round(size * 1.08 * S)}px ${FONT_HEAD}` : `500 ${Math.round(size * S)}px ${FONT}`; X.textBaseline = 'top'; }
 function txt(s, x, y, col = '#f2e8d2', size = 10, align = 'left', shadow = true) {
+  if (hasMark(s)) { txtMark(s, x, y, col, size, align, shadow); return; }
   const [c, head, sh] = themeUI('text')(col, uiPanelAt(x, y + size * 0.5), shadow);
   setFont(size, head); X.textAlign = align;
   if (sh) { X.fillStyle = sh; X.fillText(s, x * S + 2, y * S + 2); }
@@ -425,22 +426,83 @@ function txt(s, x, y, col = '#f2e8d2', size = 10, align = 'left', shadow = true)
 }
 // Mincho text with a soft shadow, for titles, cards and banners (not tied to a panel)
 function headTxt(s, x, y, col = UI.cream, size = 14, align = 'left', weight = 700, shadow = 'rgba(0,0,0,.55)') {
+  s = markPlain(s);   // titles and cards show marked text plain
   X.font = `${weight} ${Math.round(size * S)}px ${FONT_HEAD}`; X.textBaseline = 'top'; X.textAlign = align;
   if (shadow) { X.save(); X.shadowColor = shadow; X.shadowBlur = 6; X.shadowOffsetY = 2; X.fillStyle = col; X.fillText(s, x * S, y * S); X.restore(); } else { X.fillStyle = col; X.fillText(s, x * S, y * S); }
   X.textAlign = 'left';
 }
-function txtW(s, size = 10, head) { setFont(size, head); return X.measureText(s).width / S; }
+function txtW(s, size = 10, head) { if (hasMark(s)) return runsW(markRuns(s), size, head); setFont(size, head); return X.measureText(s).width / S; }
+// wrap(s, maxW, size, head): lines of at most maxW logical px; '\n' breaks a line. Marked text (below) is measured as drawn and every line
+// keeps its own marks, so txt() draws each wrapped line with its highlight and key caps.
 function wrap(s, maxW, size = 10, head) {
+  if (hasMark(s)) s = String(s).replace(/\[\[(.+?)\]\]/g, (_, t) => t.split(' ').map(w => '[[' + w + ']]').join(' '));   // a highlight per word, so a line can break inside it
+  const mk = hasMark(s), wd = t => mk ? runsW(markRuns(t), size, head) : X.measureText(t).width / S;
   setFont(size, head); const out = [];
   for (const para of String(s).split('\n')) {
     const words = para.split(' '); let line = '';
     for (const w of words) {
       const t = line ? line + ' ' + w : w;
-      if (X.measureText(t).width / S > maxW && line) { out.push(line); line = w; } else line = t;
+      if (wd(t) > maxW && line) { out.push(line); line = w; } else line = t;
+      if (mk) setFont(size, head);
     }
     out.push(line);
   }
   return out;
+}
+// ---------------- marked text (job text-pass, 1 Nov 2026) ----------------
+// One small markup for every string the player reads: [[words]] = the game's one highlight (names of people, places and story items;
+// the theme's `emphasis` widget gives its colour and weight); {a} {b} {start} {up} {down} {left} {right} = a key cap with that key's
+// name in the player's control scheme (the theme's `keyCap` widget); {move} {moveKeys} = the movement keys' names as words.
+// txt(), txtW() and wrap() read it; headTxt() shows it plain; the dialogue box draws it letter by letter (05_field.js).
+const MARK_RE = /\[\[(.+?)\]\]|\{(a|b|start|up|down|left|right)\}|\{(move|moveKeys)\}/g;
+const MARK_TEST = /\[\[|\{(?:a|b|start|up|down|left|right|move|moveKeys)\}/;
+const hasMark = s => typeof s === 'string' && MARK_TEST.test(s);
+function markRuns(s) {   // -> [{ t, k }]: k '' = plain, 'h' = highlight, 'c' = key cap
+  s = String(s); const out = []; let i = 0, m; MARK_RE.lastIndex = 0;
+  while ((m = MARK_RE.exec(s))) {
+    if (m.index > i) out.push({ t: s.slice(i, m.index), k: '' });
+    if (m[1] != null) out.push({ t: m[1], k: 'h' }); else if (m[2]) out.push({ t: keyName(m[2]), k: 'c' }); else out.push({ t: keyName(m[3]), k: '' });
+    i = MARK_RE.lastIndex;
+  }
+  if (i < s.length) out.push({ t: s.slice(i), k: '' });
+  return out;
+}
+const markPlain = s => hasMark(s) ? markRuns(s).map(r => r.t).join('') : s;
+const CAP_IN = 3, CAP_OUT = 2;   // a key cap's padding inside its box and its gap outside, logical px
+function markFont(r, size, head, onPanel) {
+  if (r.k === 'h') { const wt = themeUI('emphasis')(onPanel)[1]; X.font = `${wt} ${Math.round(size * S)}px ${head ? FONT_HEAD : FONT}`; X.textBaseline = 'top'; }
+  else setFont(size, head);
+}
+function runsW(runs, size, head, onPanel = true) {
+  let w = 0;
+  for (const r of runs) { markFont(r, size, head, onPanel); w += X.measureText(r.t).width / S + (r.k === 'c' ? 2 * (CAP_IN + CAP_OUT) : 0); }
+  return w;
+}
+// draw runs from (x, y) with base colour c (already the theme's), at most n plain characters (the dialogue's typewriter); returns the end x
+function drawRuns(runs, x, y, c, size, head, sh, onPanel, n = Infinity) {
+  let cx = x, left = n; const [ec] = themeUI('emphasis')(onPanel), dy = head ? size * 0.12 : 0;
+  for (const r of runs) {
+    if (left <= 0) break;
+    const t = r.t.slice(0, left); left -= r.t.length;
+    markFont(r, size, head, onPanel);
+    if (r.k === 'c') {
+      const w = X.measureText(r.t).width / S;
+      themeUI('keyCap')(cx + CAP_OUT, y - 2, w + 2 * CAP_IN, size + 4, onPanel);
+      cx += CAP_OUT + CAP_IN;
+      X.fillStyle = c; X.fillText(t, cx * S, y * S - dy * S); cx += w + CAP_IN + CAP_OUT;
+      continue;
+    }
+    if (sh) { X.fillStyle = sh; X.fillText(t, cx * S + 2, y * S + 2); }
+    X.fillStyle = r.k === 'h' ? ec : c; X.fillText(t, cx * S, y * S - dy * S);
+    cx += X.measureText(r.t).width / S;
+  }
+  return cx;
+}
+function txtMark(s, x, y, col = '#f2e8d2', size = 10, align = 'left', shadow = true, n = Infinity) {
+  const p = uiPanelAt(x, y + size * 0.5), [c, head, sh] = themeUI('text')(col, p, shadow), runs = markRuns(s);
+  X.textAlign = 'left';
+  const w = align === 'left' ? 0 : runsW(runs, size, head, !!p);
+  drawRuns(runs, align === 'center' ? x - w / 2 : align === 'right' ? x - w : x, y, c, size, head, sh, !!p, n);
 }
 function outlineTxt(s, x, y, col, size = 10, align = 'center') {
   setFont(size); X.textAlign = align; X.fillStyle = UI.outline;

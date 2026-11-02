@@ -71,7 +71,7 @@ function drawStatBlock(x, y, m = G.hero) {
 }
 function drawMenu() {
   X.fillStyle = 'rgba(12,8,6,.5)'; X.fillRect(0, 0, W * S, H * S);
-  const pages = menuPages(), n = pages.length, y0 = n > 8 ? 36 : n > 7 ? 40 : 46, st = Math.min(26, (192 - y0) / Math.max(1, n - 1));   // the spacing shrinks to fit the panel (up to 10 entries)
+  const pages = menuPages(), n = pages.length, y0 = n > 8 ? 30 : n > 7 ? 38 : 46, st = Math.min(26, (186 - y0) / Math.max(1, n - 1));   // the spacing shrinks to fit the panel (up to 10 entries; the last row clears the panel's edge)
   win(16, 16, 150, 196);
   uiStamp(132, 22, 20, GAME.seal[0], 0.04);
   pages.forEach((p, i) => { const on = Menu.sel === i, y = y0 + i * st; if (on) selBar(26, y - 3, 128, 20); txt(p.label, 46, y, on ? '#fff' : '#a89c84', 14); if (on && !Menu.tab) cursor(28, y + 1); });
@@ -99,8 +99,9 @@ function drawMenu() {
   if (Menu.msgT > 0) foot = [Menu.msg, '#f6e4b0'];
   else if (Menu.tab && pg && pg.foot) foot = pg.foot(m);
   else if (Menu.tab && pg && pg.info && !Menu.pick) { const it = (pg.list ? pg.list(m) : [])[Menu.sub]; if (it) foot = [pg.info(it, m), '#f4ecd8']; }
-  if (foot) wrap(foot[0], 580, 12).slice(0, 2).forEach((l, i) => txt(l, 32, 300 + i * 18, foot[1], 12));
-  else { txt('Aim', 32, 298, '#f6d890', 10); wrap(aim(), 560, 12).slice(0, 2).forEach((l, i) => txt(l, 32, 312 + i * 16, '#f4ecd8', 12)); }
+  const hz = THEME.sizes.help || 12;   // the help line's size (theme.json sizes.help)
+  if (foot) wrap(foot[0], 580 - (hz - 12) * 20, hz).slice(0, 2).forEach((l, i) => txt(l, 32, 300 - (hz - 12) * 2 + i * (hz + 6), foot[1], hz));
+  else { txt('Aim', 32, 298, '#f6d890', 10); wrap(aim(), 560, hz).slice(0, 2).forEach((l, i) => txt(l, 32, 312 + i * (hz + 4), '#f4ecd8', hz)); }
 }
 // a list page: its title, up to five rows around the cursor (row(it) -> { name, right, icon?, thumb?(x, y), fit? })
 function drawMenuList(pg, px, py, pw, m) {

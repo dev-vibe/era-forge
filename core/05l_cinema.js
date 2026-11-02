@@ -251,11 +251,13 @@ function drawCine() {
 function cineSubs() {
   if (!cineOn() || !Dialog.active || (Dialog.choices && Dialog.page === Dialog.pages.length - 1) || (typeof CROWD === 'object' && CROWD.top)) return false;
   const bh = CINE_BAR * cineEase(Math.min(1, CINE.bar)), y0 = H - bh + 4, pg = Dialog.pages[Dialog.page], who = Dialog.who;
-  const thought = isHeroName(who) && /^\(/.test(pg[0] || ''), narr = !who;
+  const thought = isHeroName(who) && /^\(/.test(pg[0] || ''), narr = !who, mk = Dialog.marked[Dialog.page] || pg;
   let left = Dialog.shown;
-  const col = narr ? '#e6dcc6' : thought ? '#bfb6a4' : '#f6eedc', x = narr ? 320 : 128, al = narr ? 'center' : 'left', lh = pg.length > 2 ? 13 : 15, top = y0 + (pg.length > 2 ? 1 : pg.length > 1 ? 4 : 11);
-  if (who) headTxt(who === '' ? '' : who, 116, top - 1, thought ? '#a99c86' : UI.sealHi, 11, 'right', 700, null);
-  pg.forEach((ln, i) => { const s = ln.slice(0, Math.max(0, left)); left -= ln.length; txt(s, x, top + i * lh, col, 12, al, false); });
+  // subtitles at the theme's size (sizes.subtitle, default 12; pages of at most two lines, 05_field.js subtitlePages)
+  const z = SUB_SIZE, col = narr ? '#e6dcc6' : thought ? '#bfb6a4' : '#f6eedc', x = narr ? 320 : 128, al = narr ? 'center' : 'left';
+  const lh = pg.length > 2 ? z + 1 : z + 3, top = y0 + (pg.length > 2 ? 1 : pg.length > 1 ? 4 + (12 - z) : 11 + (12 - z) / 2);
+  if (who) headTxt(who === '' ? '' : who, 116, top - 1 + (z - 12) / 2, thought ? '#a99c86' : UI.sealHi, z - 1, 'right', 700, null);
+  mk.forEach((ln, i) => { txtMark(ln, x, top + i * lh, col, z, al, false, Math.max(0, left)); left -= pg[i].length; });
   if (Dialog.shown >= pg.join('').length) moreMark(618, H - 12);
   return true;
 }

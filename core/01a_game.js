@@ -161,6 +161,8 @@ const THEME_WIDGETS = {
   scrollRods: '(x, y, w, hh) a keepsake scroll\'s rods, w wide, hh unrolled',
   rhythmNote: '(key, x, y, r, a) a note on the rhythm lane: key \'a\' = the action button, or up / right / down / left; centre (x, y) and radius r in logical px, alpha a',
   rhythmRing: '(x, y, glow, res) the lane\'s hit ring at (x, y); glow 0..1 after a hit, res = \'great\' or \'good\'',
+  keyCap: '(x, y, w, h, onPanel) the small box behind a key\'s name in marked text ({a} {b} {start} ...; 01_core.js), logical px; onPanel = over a theme panel (else over dark ground)',
+  emphasis: '(onPanel) -> [colour, font weight] of the one highlight in marked text ([[names, places, story items]]; 01_core.js)',
 };
 function defineThemeUI(name, fn) { THEME_UI[name] = fn; return fn; }
 function themeUI(name) { const f = THEME_UI[name]; if (!f) throw new Error('theme ' + THEME.id + ' has no widget ' + name); return f; }

@@ -80,3 +80,6 @@ defineThemeUI('rhythmRing', (x, y, glow, res) => {
   X.save(); if (glow > 0) { X.globalAlpha = glow * 0.8; X.fillStyle = UI.sealHi; X.beginPath(); X.arc(x * S, y * S, 15 * S, 0, 7); X.fill(); X.globalAlpha = 1; }
   X.strokeStyle = UI.seal; X.lineWidth = 2 * S; X.beginPath(); X.arc(x * S, y * S, 15 * S, 0, 7); X.stroke(); X.restore();
 });
+// marked text (job text-pass, 1 Nov 2026): a key cap is a flat outlined box; the highlight is the accent's dark tone, bold
+defineThemeUI('keyCap', (x, y, w, h, onPanel) => plainBox(x, y, w, h, onPanel ? UI.cream : UI.ink, onPanel ? UI.soft : UI.cream));
+defineThemeUI('emphasis', onPanel => [onPanel ? UI.sealDk : UI.sealHi, 700]);

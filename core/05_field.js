@@ -147,20 +147,68 @@ function warp(fn) { if (G.fadeDir) return; G.fadeDir = 1; G.fadeCb = fn; }
 // ============================================================
 //  Dialog, cards, script runner
 // ============================================================
-const Dialog = { active: false, who: '', pages: [], page: 0, shown: 0, choices: null, sel: 0, cb: null };
+const Dialog = { active: false, who: '', pages: [], marked: [], page: 0, shown: 0, beat: 0, choices: null, sel: 0, cb: null };
 const DLG_SIZE = THEME.sizes.dialog;   // dialogue and choice text size: the theme's (theme.json sizes.dialog; e.g. 14 for a rounded gothic in the 3-line box)
+const DLG_LINE = THEME.sizes.dialogLine || 20;   // line pitch in the box (theme.json sizes.dialogLine)
+const SUB_SIZE = THEME.sizes.subtitle || 12;                             // subtitles under the letterbox (05l_cinema.js)
+const DLG_WRAP = 470, SUB_WRAP = 470;
+// Pages of a line of text (job text-pass, 1 Nov 2026): a page holds at most `lines` lines and ends at the end of a sentence; a sentence
+// longer than a page breaks at a clause (, ; : —), then between words. A blank line ('\n\n') starts a new page; '\n' breaks a line.
+// Returns pages of marked lines (01_core.js marked text).
+function pageText(text, maxW, size, lines) {
+  const fits = t => wrap(t, maxW, size).length <= lines, pages = [];
+  for (const para of String(text).split(/\n\s*\n/)) {
+    const sents = para.split(/(?<=[.!?…]["”’')\]]*)\s+(?=\S)/).filter(x => x.trim()); let cur = '';
+    const flush = () => { if (cur) pages.push(wrap(cur, maxW, size)); cur = ''; };
+    for (const sn of sents) {
+      const t = cur ? cur + ' ' + sn : sn;
+      if (fits(t)) { cur = t; continue; }
+      flush();
+      if (fits(sn)) { cur = sn; continue; }
+      for (const part of sn.split(/(?<=[,;:—])\s+/)) {   // a sentence longer than a page: clauses, then lines
+        const u = cur ? cur + ' ' + part : part;
+        if (fits(u)) { cur = u; continue; }
+        flush();
+        const ls = wrap(part, maxW, size);
+        for (let i = 0; i < ls.length; i += lines) { const chunk = ls.slice(i, i + lines); if (chunk.length === lines || i + lines < ls.length) pages.push(chunk); else cur = chunk.join(' '); }
+      }
+    }
+    flush();
+  }
+  return pages.length ? pages : [['']];
+}
+// a two-sentence subtitle breaks between its sentences when each fits one line; otherwise pages of at most two lines
+function subtitlePages(text) {
+  const ss = String(text).split(/(?<=[.!?…]["”’')\]]*)\s+(?=\S)/);
+  if (ss.length === 2 && ss.every(x => wrap(x, SUB_WRAP, SUB_SIZE).length === 1)) return [ss];
+  return pageText(text, SUB_WRAP, SUB_SIZE, 2);
+}
 function openDialog(who, text, opt = {}) {
-  const lines = wrap(keyText(text), 470, DLG_SIZE);   // job a11y: {a} {start} ... name the keys of the active control scheme (01b_input.js)
+  // {a} {start} ... name the keys of the active control scheme (01b_input.js), drawn as key caps; [[...]] is the highlight (01_core.js)
+  const sub = typeof cineOn === 'function' && cineOn() && !(typeof CROWD === 'object' && CROWD.top);
+  const marked = sub ? subtitlePages(text) : pageText(text, DLG_WRAP, DLG_SIZE, 3);
   Dialog.spr = speakerSprite(who);
-  const pages = []; for (let i = 0; i < lines.length; i += 3) pages.push(lines.slice(i, i + 3));
-  Object.assign(Dialog, { active: true, who, pages, page: 0, shown: 0, choices: opt.choices || null, sel: 0, cb: opt.cb || null });
+  Object.assign(Dialog, { active: true, who, marked, pages: marked.map(pg => pg.map(markPlain)), page: 0, shown: 0, beat: 0, choices: opt.choices || null, sel: 0, cb: opt.cb || null });
+}
+// Text speed (Settings, 07c_settings.js): letters a frame at Normal / Fast, the whole page at Instant. A short beat after the end of a
+// sentence and after '...' (GAME.text.beat frames at Normal, half at Fast; 0 = none) lets a joke's turn and a silence land.
+const DLG_END = '.!?…', DLG_CLOSE = '"”’\')]';
+function dialogBeatAt(s, i) {   // true when a beat belongs after the first i letters of s
+  let j = i - 1; while (j >= 0 && DLG_CLOSE.includes(s[j])) j--;
+  if (j < 0 || !DLG_END.includes(s[j])) return false;
+  const nx = s[i]; return nx != null && !DLG_END.includes(nx) && !DLG_CLOSE.includes(nx);
 }
 function dialogUpdate() {
-  const pg = Dialog.pages[Dialog.page], total = pg.join('').length;
+  const flat = Dialog.pages[Dialog.page].join(''), total = flat.length;
   if (Dialog.shown < total) {
-    Dialog.shown += held('a') || held('b') ? 3 : 1;
+    if (btn('a')) { Dialog.shown = total; Dialog.beat = 0; return; }
+    const hurry = held('a') || held('b'), sp = textSpeed();
+    if (Dialog.beat > 0 && !hurry) { Dialog.beat--; return; }
+    if (sp === Infinity) { Dialog.shown = total; return; }
+    const from = Dialog.shown, to = Math.min(total, from + (hurry ? 3 : sp)), beat = hurry || Dialog.choices ? 0 : textBeat();   // a question types without beats: its answers wait anyway
+    Dialog.shown = to;
+    if (beat) for (let i = from + 1; i <= to && i < total; i++) if (dialogBeatAt(flat, i)) { Dialog.shown = i; Dialog.beat = beat; break; }
     if (frame % 4 === 0) sfx('talk');
-    if (btn('a')) Dialog.shown = total;
     return;
   }
   const last = Dialog.page === Dialog.pages.length - 1;
@@ -174,10 +222,12 @@ function dialogUpdate() {
     return;
   }
   if (btn('a') || btn('b')) {
-    if (!last) { Dialog.page++; Dialog.shown = 0; }
+    if (!last) { Dialog.page++; Dialog.shown = 0; Dialog.beat = 0; }
     else { Dialog.active = false; const cb = Dialog.cb; if (cb) cb(); else nextStep(); }
   }
 }
+// the hero thinking: his line in brackets, in the theme's soft ink (also under the letterbox, 05l_cinema.js)
+const dialogThought = () => typeof isHeroName === 'function' && isHeroName(Dialog.who) && /^\(/.test((Dialog.pages[0] || [])[0] || '');
 // speakerSprite(who) and castPortrait(who): the speaker's sprite spec and app portrait (01d_cast.js)
 function drawDialog() {
   if (!Dialog.active) return;
@@ -186,14 +236,16 @@ function drawDialog() {
   if (hasP) { win(18, y0 - 8, 86, 90); X.imageSmoothingEnabled = false; X.drawImage(pimg, 25 * S, (y0 - 1) * S, 72 * S, 72 * S); }
   win(x0, y0, w, 82);
   if (Dialog.who) { setFont(12, true); const nw = X.measureText(Dialog.who).width / S + 34; win(x0 + 8, y0 - 17, nw, 22, 1); txt(Dialog.who, x0 + 25, y0 - 12, '#f6d890', 12); }
-  let left = Dialog.shown; const pg = Dialog.pages[Dialog.page];
-  pg.forEach((ln, i) => { const s = ln.slice(0, Math.max(0, left)); left -= ln.length; txt(s, x0 + 18, y0 + 12 + i * 20, '#f4ecd8', DLG_SIZE); });
-  const done = Dialog.shown >= pg.join('').length;
-  if (done && !(Dialog.choices && Dialog.page === Dialog.pages.length - 1)) moreMark(x0 + w - 20, y0 + 66);
-  if (done && Dialog.choices && Dialog.page === Dialog.pages.length - 1) {
-    const cw = Math.max(...Dialog.choices.map(c => txtW(c, DLG_SIZE))) + 44, ch = Dialog.choices.length * 22 + 14;
+  let left = Dialog.shown; const pg = Dialog.pages[Dialog.page], mk = Dialog.marked[Dialog.page] || pg, lead = THEME.sizes.dialogLine ? Math.round((82 - 3 * DLG_LINE) / 2) + Math.round((DLG_LINE - DLG_SIZE) / 2) - 1 : 12;
+  const base = dialogThought() ? UI.soft : '#f4ecd8';
+  mk.forEach((ln, i) => { txtMark(ln, x0 + 18, y0 + lead + i * DLG_LINE, base, DLG_SIZE, 'left', true, Math.max(0, left)); left -= pg[i].length; });
+  const done = Dialog.shown >= pg.join('').length, n = Dialog.pages.length, last = Dialog.page === n - 1;
+  if (done && !(Dialog.choices && last)) moreMark(x0 + w - 20, y0 + 66);
+  if (n > 1) txt(`${Dialog.page + 1}/${n}`, x0 + w - 32, y0 + 62, '#8a7e66', 10, 'right', false);   // the page count of a line longer than one box
+  if (done && Dialog.choices && last) {   // the choices sit on the box's top-right edge, at the dialogue's size
+    const pitch = DLG_SIZE + 10, cw = Math.max(...Dialog.choices.map(c => txtW(c, DLG_SIZE))) + 52, ch = Dialog.choices.length * pitch + 14;
     win(620 - cw, y0 - ch - 20, cw, ch);
-    Dialog.choices.forEach((c, i) => { txt(c, 620 - cw + 28, y0 - ch - 12 + i * 22, i === Dialog.sel ? '#fff' : '#a89c84', DLG_SIZE); if (i === Dialog.sel) cursor(620 - cw + 10, y0 - ch - 10 + i * 22); });
+    Dialog.choices.forEach((c, i) => { const on = i === Dialog.sel, yy = y0 - ch - 13 + i * pitch; if (on) selBar(620 - cw + 10, yy - 3, cw - 20, pitch - 2); txt(c, 620 - cw + 30, yy, on ? '#fff' : '#a89c84', DLG_SIZE); if (on) cursor(620 - cw + 11, yy + 1 + (DLG_SIZE - 12) / 2); });
   }
 }
 const Script = { queue: [], active: false, done: null };

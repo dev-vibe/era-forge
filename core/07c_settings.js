@@ -15,7 +15,13 @@ const AID_DESC = { standard: 'Press as the ink ring closes on the foe.', wide: '
 const SPEEDS = [1, 1.5];
 // timing windows in battle ticks (60 a second): Perfect [early, late], Good [early, late]
 const WINDOWS = { standard: { p: [2, 1], g: [6, 3] }, wide: { p: [4, 2], g: [10, 5] }, hard: { p: [1, 1], g: [4, 2] } };
-function cfg() { if (!G.cfg) G.cfg = { diff: 'standard', aid: 'standard', speed: 1, ctl: 'auto' }; if (!G.cfg.ctl) G.cfg.ctl = 'auto'; return G.cfg; }
+function cfg() { if (!G.cfg) G.cfg = { diff: 'standard', aid: 'standard', speed: 1, ctl: 'auto', text: 'normal' }; if (!G.cfg.ctl) G.cfg.ctl = 'auto'; if (!G.cfg.text) G.cfg.text = 'normal'; return G.cfg; }
+// Text speed (job text-pass, 1 Nov 2026): how fast dialogue types on (05_field.js dialogUpdate). A save without it loads as Normal.
+const TEXT_SPEEDS = { normal: { name: 'Normal', cps: 1, desc: 'Text appears as it is spoken, with a short pause after each sentence.' },
+  fast: { name: 'Fast', cps: 2, desc: 'Text appears twice as fast; the pauses are shorter.' }, instant: { name: 'Instant', cps: Infinity, desc: 'Each box appears whole.' } };
+const TEXT_SPEED_IDS = ['normal', 'fast', 'instant'];
+const textSpeed = () => (TEXT_SPEEDS[cfg().text] || TEXT_SPEEDS.normal).cps;   // letters a frame
+const textBeat = () => { const b = (GAME.text && GAME.text.beat) || 0, sp = cfg().text; return sp === 'instant' ? 0 : sp === 'fast' ? Math.round(b / 2) : b; };   // frames
 const diff = () => DIFF[cfg().diff] || DIFF.standard;
 function timingWin() { const c = cfg(); return c.aid === 'wide' ? WINDOWS.wide : c.diff === 'hard' ? WINDOWS.hard : WINDOWS.standard; }
 const timingRing = () => !(cfg().diff === 'hard' && cfg().aid !== 'wide');   // Hard shows only the glint
@@ -28,6 +34,7 @@ const SETTINGS_ROWS = [
   { name: 'Timing aid', get: () => AID[cfg().aid], step: d => { const i = AID_IDS.indexOf(cfg().aid); cfg().aid = AID_IDS[(i + d + 3) % 3]; }, desc: () => AID_DESC[cfg().aid] },
   { name: 'Controls', get: () => CONTROL_NAMES[ctlSetting()] + (ctlSetting() === 'auto' && !Input.touchMode ? ` (${CONTROL_NAMES[Ctl.last]})` : ''), step: d => ctlStep(d), desc: ctlDesc },   // job a11y, tier 1
   { name: 'Battle speed', get: () => cfg().speed > 1 ? 'Fast' : 'Normal', step: () => { cfg().speed = cfg().speed > 1 ? 1 : 1.5; }, desc: () => cfg().speed > 1 ? 'Battle animations play faster (timed presses keep their pace).' : 'Battle animations at their natural pace.' },
+  { name: 'Text speed', get: () => (TEXT_SPEEDS[cfg().text] || TEXT_SPEEDS.normal).name, step: d => { const i = Math.max(0, TEXT_SPEED_IDS.indexOf(cfg().text)); cfg().text = TEXT_SPEED_IDS[(i + d + 3) % 3]; }, desc: () => (TEXT_SPEEDS[cfg().text] || TEXT_SPEEDS.normal).desc },
 ];
 function settingsUpdate() {
   const n = SETTINGS_ROWS.length;
@@ -40,14 +47,15 @@ function settingsUpdate() {
 }
 function drawSettings(px, py, pw, highContrast = false) {
   txt('Settings', px + 18, py + 12, '#f6d890', 13);
+  const rp = SETTINGS_ROWS.length > 4 ? 21 : 26;   // the rows' pitch: five rows fit the menu panel
   SETTINGS_ROWS.forEach((r, i) => {
-    const y = py + 38 + i * 26, on = i === Menu.sub;
+    const y = py + 38 + i * rp, on = i === Menu.sub;
     if (on) selBar(px + 14, y - 3, pw - 28, 19);
     txt(r.name, px + 40, y, on ? '#fff' : highContrast ? UI.soft : '#a89c84', 13);
     txt(`◀  ${r.get()}  ▶`, px + pw - 22, y, on ? '#f6d890' : highContrast ? UI.soft : '#8a7e66', 12, 'right');
     if (on) cursor(px + 20, y + 1);
   });
-  txt('Change these at any time. Left and right choose.', px + 18, py + 42 + SETTINGS_ROWS.length * 26, highContrast ? UI.soft : '#8a7e66', 10);
+  txt('Change these at any time. Left and right choose.', px + 18, py + 42 + SETTINGS_ROWS.length * rp, highContrast ? UI.soft : '#8a7e66', 10);
 }
 const settingsFoot = () => SETTINGS_ROWS[clamp(Menu.sub, 0, SETTINGS_ROWS.length - 1)].desc();
 // job fw-F3b: the Settings page as a stock menu page (01a_game.js MENU_STOCK; the game registers it)

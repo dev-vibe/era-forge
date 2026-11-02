@@ -89,14 +89,14 @@ function drawTitleUI() {
   const opts = titleOptions();
   if (t > 40) {
     const summary = Title.hasSave ? titleSaveSummary(Title.save) : '';
-    const hint = Input.touchMode ? `Tap ${keyName('a')}` : `${keyName('up')}${keyName('down')} Choose   ${keyName('a')} Confirm`;
+    const hint = Input.touchMode ? 'Tap {a}' : '{up}{down} Choose   {a} Confirm';   // marked text: key caps (01_core.js)
     X.save(); X.globalAlpha = a; frontMenu(27, 337, 300, opts, Title.sel, summary, hint); X.restore();   // 01_core.js
   }
   if (Title.settings) {
     X.fillStyle = 'rgba(8,12,16,.5)'; X.fillRect(0, 0, W * S, H * S);
     win(100, 55, 440, 265); drawSettings(100, 55, 440, true);
     wrap(settingsFoot(), 400, 11).slice(0, 3).forEach((line, i) => txt(line, 120, 232 + i * 16, UI.ink, 11));
-    txt(`${keyName('b')} Back`, 120, 300, UI.soft, 11);
+    txt('{b} Back', 120, 300, UI.soft, 11);
   }
   if (Title.diff != null) drawDiffPick(Title.diff, t);
 }

@@ -197,6 +197,6 @@ function drawChronCard(c) {
 defineCardPage('chron', { card: c => drawChronCard(c), draw: (o, a, c) => drawChronPage(o, a, c), pages: o => chronPages(o.body).length });
 // the Chronicle as a stock menu page (01a_game.js MENU_STOCK; the game registers it): tabs with Left / Right, an entry read with A
 MENU_STOCK.chronicle = { label: 'Chronicle', when: () => chronOn(), list: () => chronList(), use: it => chronOpen(it), turn: d => chronSwitch(d),
-  info: it => chronFoot(it) + `  (${keyName('a')}: read)`,
+  info: it => chronFoot(it) + '  {a} Read',
   title: () => `Chronicle — ${chronTabs()[Chron.tab]}`, head: () => chronTabs().map((t, i) => i === Chron.tab ? '◆' : '◇').join(' ') + '   ◀ ▶',
   row: it => ({ name: it.title, right: chronStatus(it), thumb: (x, y) => chronThumb(it, x, y), fit: true }) };

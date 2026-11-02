@@ -106,8 +106,8 @@ function drawWorldUI() {
   const status = A.stamps[A.cleared(l) ? 'cleared' : open ? (l.built ? 'active' : 'soon') : 'locked'];
   X.font = `700 ${Math.round(10 * S)}px ${FONT_HEAD}`; const sw = X.measureText(status[0]).width / S + 20; X.save(); X.translate((28 + sw / 2) * S, 107 * S); X.rotate(-0.03); X.fillStyle = status[1]; X.globalAlpha = 0.9; X.fillRect(-sw / 2 * S, -9 * S, sw * S, 18 * S); X.strokeStyle = UI.cream; X.globalAlpha = 0.7; X.lineWidth = S; X.strokeRect((-sw / 2 + 2) * S, -7 * S, (sw - 4) * S, 14 * S); X.restore(); X.font = `700 ${Math.round(10 * S)}px ${FONT_HEAD}`; X.textAlign = 'center'; X.textBaseline = 'middle'; X.fillStyle = UI.cream; X.fillText(status[0], (28 + sw / 2) * S, 107 * S); X.textAlign = 'left'; X.textBaseline = 'top';
   wrap(l.blurb, 168, 12).forEach((ln, i) => txt(ln, 28, 128 + i * 19, '#f4ecd8', 12));
-  if (open && l.built) txt(`${keyName('a')}  Travel here`, 28, 322, '#f6d890', 12);
-  else txt(`${keyName('move')}  Choose a place`, 28, 322, '#8a7e66', 11);
+  if (open && l.built) txt('{a} Travel here', 28, 322, '#f6d890', 12);
+  else txt('{move}: choose a place', 28, 322, '#8a7e66', 11);
   const [nx, ny] = locXY(l), tw = txtW(l.name, 11) + 16;
   const tx = clamp(nx - tw / 2, 220, W - tw - 4), ty = ny + 8;
   win(tx, ty, tw, 18); txt(l.name, tx + tw / 2, ty + 3, '#fff', 11, 'center');
@@ -287,12 +287,12 @@ function drawRoadUI() {
     const seals = roadSeals(s); seals.forEach((h, i) => { const x = h.at[0] * W, y = h.at[1] * H; uiStamp(x, y, i === r.sel ? 26 : 22, roadSeen(h.id) ? glyph[1] : glyph[0]);
       if (i === r.sel && !Dialog.active) { const w = Math.min(230, txtW(h.name, 12) + 22); win(x - w / 2, y + 18, w, 25); txt(h.name, x, y + 24, UI.ink, 12, 'center'); }
     });
-    win(18, 296, 604, 50); if (r.sel === seals.length) cursor(30, 310); txt(s.departLabel || 'Set out for ' + s.next, 48, 305, r.sel === seals.length ? UI.seal : UI.ink, 14); txt(`${keyName('move')} · seals or departure    ${keyName('a')} · choose    ${keyName('start')} · menu`, 34, 329, '#725843', 10); return;
+    win(18, 296, 604, 50); if (r.sel === seals.length) cursor(30, 310); txt(s.departLabel || 'Set out for ' + s.next, 48, 305, r.sel === seals.length ? UI.seal : UI.ink, 14); txt('{move}: seals or departure    {a} Choose    {start} Menu', 34, 329, '#725843', 10); return;
   }
   if (Road.marker) { const { x, y } = Road.marker; win(x - 56, y + 10, 112, 22); txt(gameText(r.leg ? '{hero} · travelling' : '{hero} · you are here'), x, y + 16, UI.ink, 10, 'center'); }
   const target = r.leg ? r.leg.to : roadLegInfo(r.station)?.to; win(360, 74, 262, 206);
   route.stations.filter(roadOnBranch).forEach((s, i) => { txt(s.name, 375, 85 + i * 19, r.visited.includes(s.id) ? UI.ink : '#796c57', 10); txt(s.id === r.station ? 'HERE' : s.id === target ? 'NEXT' : r.visited.includes(s.id) ? 'VISITED' : '', 608, 86 + i * 19, s.id === target ? UI.seal : '#796c57', 8, 'right'); });
-  win(18, 296, 604, 50); txt(r.mode === 'checkpoint' ? roadText('checkpoint') : r.leg ? 'Travelling to ' + roadStationById(r.leg.to).name : `${keyName('a')} · Set out for ` + legTo(r.station), 32, 305, UI.ink, 13); txt(`${keyName('start')} · menu`, 32, 330, '#725843', 10);
+  win(18, 296, 604, 50); txt(r.mode === 'checkpoint' ? roadText('checkpoint') : r.leg ? 'Travelling to ' + roadStationById(r.leg.to).name : '{a} Set out for ' + legTo(r.station), 32, 305, UI.ink, 13); txt('{start} Menu', 32, 330, '#725843', 10);
 }
 function drawRoadDialog() {
   const d = Dialog, x = 352, y = 66, w = 270, who = (roadRoute().speakerAlias || {})[d.who] || d.who, p = castPortrait(who) || (d.spr && portrait(d.spr));

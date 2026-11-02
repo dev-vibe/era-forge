@@ -398,10 +398,11 @@ function drawBattleUI() {
   for (const tg of B.tags) drawTechTag(tg);
   if (B.cut) drawCutIn(B.cut);
   // commands (with whose turn it is, when there is more than one)
-  win(16, 262, 170, 86);
-  if (!solo() && choosing && p) { setFont(12, true); const nw = X.measureText(p.name).width / S + 34; win(24, 245, nw, 22, 1); txt(p.name, 41, 250, '#f6d890', 12); }
+  const cz = THEME.sizes.command || 12, cp = cz + 3.5, ctop = Math.min(262, Math.floor(332 - 4 * cp - cz));   // the command list's size and pitch (theme.json sizes.command); the panel grows until five rows clear its lower edge
+  win(16, ctop, 170, 348 - ctop);
+  if (!solo() && choosing && p) { setFont(12, true); const nw = X.measureText(p.name).width / S + 34; win(24, ctop - 17, nw, 22, 1); txt(p.name, 41, ctop - 12, '#f6d890', 12); }
   if (B.phase === 'cmd' || B.phase === 'tech' || B.phase === 'item' || (B.phase === 'ally' && !solo())) {
-    battleCommands().forEach((c, i) => { const on = i === B.sel; txt(c, 44, 268 + i * 15.5, on ? '#fff' : '#a89c84', 12); if (on && B.phase === 'cmd') cursor(24, 268 + i * 15.5); });
+    battleCommands().forEach((c, i) => { const on = i === B.sel; txt(c, 44, ctop + 6 + i * cp, on ? '#fff' : '#a89c84', cz); if (on && B.phase === 'cmd') cursor(24, ctop + 6 + i * cp + (cz - 12) / 2); });
   } else B.enemies.filter(e => e.alive).slice(0, 4).forEach((e, i) => txt(e.name, 30, 270 + i * 19, B.phase === 'target' && alive()[B.target] === e ? '#fff' : '#d8ccb0', 12));
   // party panel
   win(372, 262, 252, 86);

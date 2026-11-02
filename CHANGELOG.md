@@ -10,6 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.3.0 (1 Nov 2026) | `pending` | no (optional: theme `sizes`, `GAME.text.beat`, `[[...]]` and `{a}` in text; a game theme adds two widgets) | marked text (one highlight, key caps), dialogue paged at sentence ends with a page count, Text speed in Settings with sentence beats, subtitles' size and breaks, lists that fit their panels |
 | 0.2.9 (1 Nov 2026) | `cb66da24d1cba4348df8d605fc2c1eefcdb6f4e2` | no | the battle spot editor's Save is taken out again: Copy JSON is how a spot reaches the scene file |
 | 0.2.8 (1 Nov 2026) | `699455fef34b09644b84d07228135174fdae1a9d` | no | the battle spot editor shows the fighters on their marks right away (skips the standoff and the opening slide-in it would otherwise freeze) |
 | 0.2.7 (1 Nov 2026) | `54ecf8fd7f6baab343847dd8053d561d617e11f7` | no | the battle spot editor's Save writes the spot into the game's own scene file (folder access, remembered; a download where a browser has none); "every fight in this scene" |
@@ -21,6 +22,34 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.3.0 (1 Nov 2026)
+
+Ronin job text-pass (the Chapter 1 text and readability pass; Ronin's charter area 16, approved by Ash 1 Nov 2026: "yep"). The text layer
+every game reads through:
+- **Marked text** (`core/01_core.js`): `[[words]]` is the game's one highlight (names of people, places and story items) and `{a}` `{b}`
+  `{start}` `{up}` `{down}` `{left}` `{right}` a key cap naming the key in the player's control scheme; `{move}` / `{moveKeys}` stay words.
+  `txt`, `txtW` and `wrap` read it (`markRuns`, `runsW`, `drawRuns`, `txtMark`, `markPlain`); `headTxt` draws it plain. Two new theme
+  widgets draw it: `keyCap(x, y, w, h, onPanel)` and `emphasis(onPanel) -> [colour, weight]`.
+- **Dialogue** (`core/05_field.js`): `pageText` pages a line so every box ends at a sentence end (a sentence longer than a box breaks at a
+  clause, then between words; a blank line starts a new box); a line longer than one box shows its page count; the hero's bracketed
+  thoughts are drawn in `UI.soft`; choices are drawn at the dialogue's size with the selection bar. `Dialog.pages` still holds the plain
+  lines (tests read it as before), `Dialog.marked` the marked ones.
+- **Text speed** (`core/07c_settings.js`): a Settings row, Text speed Normal / Fast / Instant (`G.cfg.text`, saved with the game; an old save
+  loads as Normal); `GAME.text.beat` frames of pause after a sentence end and after "..." (half at Fast, none at Instant; default 0).
+- **Sizes** (theme.json `sizes`, all optional, the old size as default): `dialogLine` (the dialogue's line pitch), `subtitle` (subtitles
+  under the letterbox; a two-sentence subtitle breaks between its sentences, pages of at most two lines), `help` (the menu's help line),
+  `command` (the battle commands).
+- **Lists that fit:** the pause menu's ninth and tenth rows and the battle's fifth command no longer touch the panel's lower edge; the
+  Settings page fits five rows.
+- Key hints in the engine use key caps: the title menu, the title's Settings, the world map, the road map, the Chronicle list, the
+  minigame result.
+
+### What a game must change
+
+A game with its own theme adds the two widgets `keyCap` and `emphasis` (the plain theme's are four lines). Everything else is optional:
+the theme's new `sizes`, `GAME.text.beat`, and the markup in the game's strings. A test that walks the Settings rows by key presses finds
+Text speed as the fifth row, after Battle speed.
 
 ## 0.2.9 (1 Nov 2026, commit `cb66da2`)
 

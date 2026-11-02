@@ -98,7 +98,7 @@ function drawMiniResult(M) {
     const sx = x + (ln && ln.portrait && assetImg('portrait_' + ln.portrait) ? 108 : 28), sy = Math.max(textEnd + 4, y + h - 34 - below.length * 12);
     below.slice(0, 3).forEach((l, i) => txt(l, sx, sy + i * 12, '#a89c84', 9));
   }
-  if (M.resF > 40) { txt(`${keyName('a')}  Continue`, x + w - 24, y + h - 22, '#a89c84', 10, 'right'); moreMark(x + w - 14, y + h - 18); }
+  if (M.resF > 40) { txt('{a} Continue', x + w - 24, y + h - 22, '#a89c84', 10, 'right'); moreMark(x + w - 14, y + h - 18); }
   X.globalAlpha = 1;
 }
 
@@ -297,7 +297,7 @@ const drawRhythmRing = (x, y, glow, res) => themeUI('rhythmRing')(x, y, glow, re
 function drillDrawCall(P) {
   const Ln = RHYTHM_LANE, ly = Ln.y + Ln.h / 2, t = P.t, lead = 2.2;
   win(Ln.x, Ln.y, Ln.w, Ln.h);
-  if (P.phase === 'intro') { txt(`${keyName('a')}  Begin`, 320, 260, '#fff', 12, 'center'); drawRhythmRing(Ln.hit, ly, 0); return; }
+  if (P.phase === 'intro') { txt('{a} Begin', 320, 260, '#fff', 12, 'center'); drawRhythmRing(Ln.hit, ly, 0); return; }
   X.fillStyle = 'rgba(42,32,24,.25)'; X.fillRect(Ln.hit * S, (ly - 0.5) * S, (Ln.x + Ln.w - 12 - Ln.hit) * S, S);
   drawRhythmRing(Ln.hit, ly, 0);
   for (let i = P.notes.length - 1; i >= 0; i--) {

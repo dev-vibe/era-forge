@@ -60,3 +60,42 @@ What the job built: `battleStage` (the fight's camera window and everyone's mark
    but the game is changed through pull requests: the saved local copy still needed committing, so it only skipped a paste. Copy JSON
    was enough; Save was taken out (0.2.9). Ask where the result goes next before building the last step. (And wrap every IndexedDB
    callback in try: a throw inside `onsuccess` leaves its promise pending for ever.)
+
+## Text, reading level and layout (Ronin job text-pass, 1 Nov 2026)
+
+What the job built: an inventory of every string the player reads (a JS parser over the game's code, the framework's and the scene files,
+with file, line, speaker, Flesch-Kincaid grade and boxes in the real fonts), the game's text rules in its charter, the marked-text layer and
+sentence paging (0.3.0), and a rewrite of the lines that broke the rules.
+
+1. **Measure before rewriting.** By sentence and syllable counts Ronin's Chapter 1 already read at about grade 3; the problems were
+   concentrated (examine texts were a third of all words and held most of the long sentences and walls of text). A per-string inventory
+   turns "make it easier to read" into a list of a couple of hundred lines, and leaves the lines that work alone.
+2. **Flesch-Kincaid does not see names.** A line of short words can still bury the reader under five new names or an unexplained term.
+   Count new names per box and check each period term's first use by hand.
+3. **Page at sentence ends, not every three lines.** A box that ends mid-sentence ("does not light a fire for" / "nothing.") is the
+   commonest layout fault in long text. Sentence paging alone makes a long text take more boxes, so it comes with a length rule.
+4. **Keep the plain text where tests read it.** Markup lives beside the plain lines (`Dialog.marked`), so the many tests that read
+   `Dialog.pages` keep working; only a test that checks exact text changes its expected text.
+5. **Add a settings row at the end.** Tests walk Settings with key presses; a row inserted in the middle moves every row after it.
+6. **Framework comments must not name a game.** The zero-names test reads comments too ("Ronin job ...").
+
+### Proposed setup-interview questions (area 16, Text voice and layout; not yet in `setup-interview.md`)
+
+**Ask**
+- Who reads the game, and at what reading age? A target grade for most lines, and a ceiling for history or lore?
+- How long may a sentence be, and how much may one box hold? Is there a length limit for examine texts and lore?
+- Which words from the setting's language or period stay (and how are they explained: once, at first use, in the same sentence)? One
+  spelling for names (macrons, diacritics)?
+- Humour: wanted or not? Where may it come from (character, situation, understatement, a child's logic) and where never (grief, serious
+  beats)? What is banned (modern slang, pop culture, winks at the player, puns, anachronisms)?
+- Each main character's voice in a line, and where their humour comes from.
+- Layout: dialogue size, lines a box, characters a line; one highlight for names, places and items or none; key caps; text speed options
+  and a beat after sentences; subtitle size; menu order.
+
+**Options:** reading age bands (8-10, 11-14, adult); highlight on / off; text speed Normal / Fast / Instant or fixed; beat 0-12 frames.
+
+**Lands in:** charter area 16; `game.json` `text` (`beat`); the theme's `sizes` (`dialog`, `dialogLine`, `subtitle`, `help`, `command`) and
+its `keyCap` and `emphasis` widgets.
+
+*Example (Ronin's answer, not a default):* ages 11 to 14, grade 6 or below (7 for history), sentences about 10 words and none over 20,
+examine texts two boxes at most, 16 px dialogue, one dark vermilion highlight, key caps, a beat of 8 frames.
