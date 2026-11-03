@@ -10,7 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
-| 0.3.2 (3 Nov 2026) | `PENDING` | no (optional: a skill's `when`, `label`, `act` + `GAME_HOOKS.foeAct`; a fight's `drawBack`) | a foe can plan the game's own action (not a blow at the party), show that one plan as a label, plan a skill only when it may; a fight can draw its own layer over its backdrop |
+| 0.3.2 (3 Nov 2026) | `0e12c6afce09e1c3e7580b3a712a8369022bc6c5` | no (optional: a skill's `when`, `label`, `act` + `GAME_HOOKS.foeAct`; a fight's `drawBack`) | a foe can plan the game's own action (not a blow at the party), show that one plan as a label, plan a skill only when it may; a fight can draw its own layer over its backdrop |
 | 0.3.1 (1 Nov 2026) | `516f1ee2eb9a4ce67480915290ea6b250bc3c598` | no (optional: atlas `place`, `link`, `heroAt`, `zoomRect`, `veil`) | the map of a game can draw its places, links and hero itself, and zoom into a journey's map (and back out) through a veil; `travelPin` is the road's pin for any map |
 | 0.3.0 (1 Nov 2026) | `d6ca88a09b23f799a76bf4108ca2aeedcb13a3c3` | yes, if it has its own theme (two widgets: `keyCap`, `emphasis`); optional: theme `sizes`, `GAME.text.beat`, markup | marked text (one highlight, key caps), dialogue paged at sentence ends with a page count, Text speed in Settings with sentence beats, subtitles' size and breaks, lists that fit their panels |
 | 0.2.9 (1 Nov 2026) | `cb66da24d1cba4348df8d605fc2c1eefcdb6f4e2` | no | the battle spot editor's Save is taken out again: Copy JSON is how a spot reaches the scene file |
@@ -25,7 +25,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
 
-## 0.3.2 (3 Nov 2026, commit `PENDING`)
+## 0.3.2 (3 Nov 2026, commit `0e12c6a`)
 
 Ronin job ch2-proto (the Chapter 2 prototype: a stage show the enemy tries to wreck). The turn-battle kit (`kits/battle-turn/`):
 - **A foe's own action** (`07_battle.js`, `enemyAct`): a skill with `act: '<name>'` is the game's action instead of a blow at the party.
