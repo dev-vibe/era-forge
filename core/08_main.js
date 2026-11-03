@@ -12,7 +12,7 @@ const Title = { sel: 0, hasSave: false, save: null, diff: null, settings: false,
 // beside the hero) }. A game without the hook gets plain daylight.
 const TITLE_TIER_DAY = { key: 'day', dawn: 0, mist: 0, child: false };
 const titleTier = save => gameHook('titleTier', save) || TITLE_TIER_DAY;
-const titleOptions = () => Title.hasSave ? ['Continue', 'New Journey', 'Settings'] : ['New Journey', 'Settings'];
+const titleOptions = () => (Title.hasSave ? ['Continue', 'New Journey', 'Settings'] : ['New Journey', 'Settings']).concat(PLAYER_PAGE && window.GAME_SITE.saves ? ['Saved games'] : []);   // 0.3.4: the release page's Saved games
 const titleSettingsKey = () => SAVE_KEY + '_title_settings';
 function titleConfig(c) {
   c = c || {};
@@ -66,6 +66,7 @@ function titleUpdate() {
   if (btn('a')) {
     sfx('ok'); const o = opts[Title.sel];
     if (o === 'Settings') { Title.settings = true; Menu.sub = 0; return; }
+    if (o === 'Saved games') { location.href = window.GAME_SITE.saves; return; }   // 0.3.4: the saved-games page (download, import), in this tab
     if (o === 'Continue') {
       const d = readSave(), selected = titleConfig(cfg()), override = Title.override;
       if (d && d.hero) { warp(() => { loadData(d); if (override) G.cfg = selected; }); return; }

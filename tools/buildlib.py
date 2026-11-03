@@ -96,11 +96,15 @@ def site_names(game):
                      the host checks the sign-in itself): the hosted pages read it into window.GAME_PLAYER and
                      every save key gets '@<name>' (0.3.3)
       signOut        the host's sign-out path, linked beside the player's name in the pages' navigation           default none
+      playerPage     true: the hosted game page (/) is the release page: the game fills the window, no key strip,   default false
+                     buttons or links around it; Sound, Full screen, Touch pad and Sign out are Settings rows and
+                     Saved games a title option (0.3.4). Test and review pages keep their wrapper.
     """
     site = game.get('site') or {}; gid = game['id']; save = game.get('saveKey') or gid + '_save_v1'
     return {'testReady': site.get('testReady') or gid.upper() + '_TEST_READY', 'controlsKey': site.get('controlsKey') or gid + '_test_controls_',
             'saveBackupKey': site.get('saveBackupKey') or (re.sub(r'_v(\d+)$', r'_backup_v\1', save) if re.search(r'_v\d+$', save) else save + '_backup'),
-            'saveKey': save, 'playerCookie': site.get('playerCookie') or '', 'signOut': site.get('signOut') or ''}
+            'saveKey': save, 'playerCookie': site.get('playerCookie') or '', 'signOut': site.get('signOut') or '',
+            'playerPage': bool(site.get('playerPage'))}
 
 
 PLAYER_NAME = r'[A-Za-z0-9_-]{1,32}'   # what a player cookie may hold; anything else counts as no player
@@ -113,6 +117,12 @@ def player_script(game):
     if not cookie: return ''
     assert re.fullmatch(r'[A-Za-z0-9_-]+', cookie), f'site.playerCookie {cookie!r}: letters, digits, _ and - only'
     return ('<script>window.GAME_PLAYER=(document.cookie.match(/(?:^|;\\s*)' + cookie + '=(' + PLAYER_NAME + ')(?:;|$)/)||[])[1]||\'\';</script>')
+
+
+def player_page_script(game):
+    """The release page's first script (0.3.4): window.GAME_SITE = { player: true, saves, signOut } for the game's own rows and options."""
+    names = site_names(game)
+    return '<script>window.GAME_SITE=' + json.dumps({'player': True, 'saves': '/saves/', 'signOut': names['signOut']}) + ';</script>'
 
 
 def player_nav(game):

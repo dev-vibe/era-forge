@@ -82,13 +82,16 @@ def link(source, target):
     except OSError: shutil.copy2(source, target)
 
 
-def document(fragment, review=None, category=None):
+def document(fragment, review=None, category=None, player=False):
     # All tools share one set of assets. Review saves never replace the player's real save slot.
     fragment = fragment.replace('"img/', '"/img/').replace('"audio/', '"/audio/')
     if review:
         fragment = fragment.replace('<script>', '<script>window.GAME_SAVE_KEY='+json.dumps(GID+'_review_'+review)+';', 1)
     split = fragment.index('<div class="frame">')
     head, body = fragment[:split], fragment[split:]
+    if player:   # 0.3.4: the release page: the game alone, filling the window (core/shell.html body.player); no navigation, no test tools
+        return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+                + PLAYER + fw.player_page_script(GAME_JSON) + head + '</head><body class="player">' + body + '</body></html>')
     nav = f'<nav class="host-nav" aria-label="{escape(NAME)} pages"><a href="/">Play</a> · <a href="/test/">Test pages</a> · <a href="/saves/" target="_blank" rel="noopener">Saved games</a>'+PLAYER_NAV+'</nav>'
     style = '<link rel="stylesheet" href="/test-tools.css">'
     if review == 'road': style += '<style>body{--reserve:235px}body.touch{--reserve:350px}</style>'
@@ -204,7 +207,7 @@ def main():
         elif kind:
             if not (HOOKS and kind in getattr(HOOKS, 'kinds', {})): raise SystemExit(f'build_site: test page kind {kind!r} needs the game\'s site hook (catalogue.json siteHooks)')
             fragment = HOOKS.kinds[kind](fragment, kinds[category])
-        target.write_text(document(fragment, review, category), encoding='utf-8')
+        target.write_text(document(fragment, review, category, player=(dest == '' and fw.site_names(GAME_JSON)['playerPage'])), encoding='utf-8')
     jump_page = ROOT/pub/'tests_fragment.html'   # job fw-F7: the site's own game registers test jumps and its builder wrote the page
     if jump_page.is_file():
         (OUT/'test/jumps').mkdir(parents=True, exist_ok=True)

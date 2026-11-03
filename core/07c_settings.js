@@ -36,10 +36,23 @@ const SETTINGS_ROWS = [
   { name: 'Battle speed', get: () => cfg().speed > 1 ? 'Fast' : 'Normal', step: () => { cfg().speed = cfg().speed > 1 ? 1 : 1.5; }, desc: () => cfg().speed > 1 ? 'Battle animations play faster (timed presses keep their pace).' : 'Battle animations at their natural pace.' },
   { name: 'Text speed', get: () => (TEXT_SPEEDS[cfg().text] || TEXT_SPEEDS.normal).name, step: d => { const i = Math.max(0, TEXT_SPEED_IDS.indexOf(cfg().text)); cfg().text = TEXT_SPEED_IDS[(i + d + 3) % 3]; }, desc: () => (TEXT_SPEEDS[cfg().text] || TEXT_SPEEDS.normal).desc },
 ];
+// 0.3.4: on the release page (PLAYER_PAGE, 01_core.js) the buttons the test pages show under the game are rows here, and so is signing out
+const SignOut = { armed: false };
+if (PLAYER_PAGE) SETTINGS_ROWS.push(
+  { name: 'Sound', get: () => Snd.on ? 'On' : 'Off', step: () => { audioInit(); toggleSound(); }, desc: () => 'Music and sound effects. The N key switches them too.' },
+  { name: 'Full screen', get: () => !fullscreenOk() ? 'Not here' : document.fullscreenElement ? 'On' : 'Off', step: () => fullscreenToggle(),
+    desc: () => fullscreenOk() ? 'Fill the whole screen. Esc leaves full screen too.' : 'This browser cannot show the game full screen; it already fills the window.' },
+  { name: 'Touch pad', get: () => Input.touchMode ? 'On' : 'Off', step: () => setTouch(!Input.touchMode), desc: () => 'Buttons on the screen, for a phone or a tablet.' },
+  ...(window.GAME_SITE.signOut && window.GAME_PLAYER ? [{ name: 'Signed in', get: () => SignOut.armed ? 'Sign out?' : window.GAME_PLAYER,
+    step: () => { if (SignOut.armed) location.href = window.GAME_SITE.signOut; else SignOut.armed = true; },
+    desc: () => SignOut.armed ? 'Press again to sign out. Anything since your last save is lost.' : `Playing as ${window.GAME_PLAYER}. Press to sign out, so someone else can play here.` }] : []));
+const SETTINGS_VISIBLE = 5;   // rows shown at once; more scroll (0.3.4)
+const settingsTop = () => SETTINGS_ROWS.length > SETTINGS_VISIBLE ? clamp(Menu.sub - 2, 0, SETTINGS_ROWS.length - SETTINGS_VISIBLE) : 0;
 function settingsUpdate() {
-  const n = SETTINGS_ROWS.length;
+  const n = SETTINGS_ROWS.length, was = Menu.sub;
   if (nav('up')) { Menu.sub = (Menu.sub + n - 1) % n; sfx('cursor'); }
   if (nav('down')) { Menu.sub = (Menu.sub + 1) % n; sfx('cursor'); }
+  if (Menu.sub !== was) SignOut.armed = false;
   Menu.sub = clamp(Menu.sub, 0, n - 1);
   const r = SETTINGS_ROWS[Menu.sub];
   if (nav('left')) { r.step(-1); sfx('cursor'); }
@@ -48,14 +61,17 @@ function settingsUpdate() {
 function drawSettings(px, py, pw, highContrast = false) {
   txt('Settings', px + 18, py + 12, '#f6d890', 13);
   const rp = SETTINGS_ROWS.length > 4 ? 21 : 26;   // the rows' pitch: five rows fit the menu panel
-  SETTINGS_ROWS.forEach((r, i) => {
-    const y = py + 38 + i * rp, on = i === Menu.sub;
+  const top = settingsTop(), vis = Math.min(SETTINGS_ROWS.length, SETTINGS_VISIBLE);
+  SETTINGS_ROWS.slice(top, top + vis).forEach((r, j) => {
+    const i = top + j, y = py + 38 + j * rp, on = i === Menu.sub;
     if (on) selBar(px + 14, y - 3, pw - 28, 19);
     txt(r.name, px + 40, y, on ? '#fff' : highContrast ? UI.soft : '#a89c84', 13);
     txt(`◀  ${r.get()}  ▶`, px + pw - 22, y, on ? '#f6d890' : highContrast ? UI.soft : '#8a7e66', 12, 'right');
     if (on) cursor(px + 20, y + 1);
   });
-  txt('Change these at any time. Left and right choose.', px + 18, py + 42 + SETTINGS_ROWS.length * rp, highContrast ? UI.soft : '#8a7e66', 10);
+  if (top > 0) txt('▲', px + pw / 2, py + 28, highContrast ? UI.soft : '#8a7e66', 9, 'center');
+  if (top + vis < SETTINGS_ROWS.length) txt('▼', px + pw / 2, py + 34 + vis * rp, highContrast ? UI.soft : '#8a7e66', 9, 'center');
+  txt('Change these at any time. Left and right choose.', px + 18, py + 42 + vis * rp, highContrast ? UI.soft : '#8a7e66', 10);
 }
 const settingsFoot = () => SETTINGS_ROWS[clamp(Menu.sub, 0, SETTINGS_ROWS.length - 1)].desc();
 // job fw-F3b: the Settings page as a stock menu page (01a_game.js MENU_STOCK; the game registers it)

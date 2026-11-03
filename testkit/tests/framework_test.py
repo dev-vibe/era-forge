@@ -90,6 +90,15 @@ check("const SAVE_KEY = playerKey(" in core and "key + '@' + window.GAME_PLAYER"
 saves = open(os.path.join(FW, 'tools', 'site', 'saves.html'), encoding='utf-8').read()
 check('__PLAYER_SCRIPT__' in saves and "KEY=at(PLAIN)" in saves and "BACKUP=at(" in saves, 'the saved-games page reads the player and uses the same scoped keys (save and backup)')
 
+# ---- the release page (0.3.4): the hosted game alone; its buttons become Settings rows and a title option
+check(buildlib.site_names(plain)['playerPage'] is False and buildlib.site_names(dict(plain, site={'playerPage': True}))['playerPage'] is True, 'site.playerPage is off unless the game turns it on')
+check('"player": true' in buildlib.player_page_script(dict(signed, site={**signed['site'], 'playerPage': True})) and '/logout' in buildlib.player_page_script(signed), 'the release page script names the saved-games page and the sign-out path')
+shell = open(os.path.join(FW, 'core', 'shell.html'), encoding='utf-8').read()
+check('body.player .frame' in shell and 'body.player .frame::before, body.player .frame::after, body.player .bar { display: none; }' in shell, 'the shell has the release layout: the game fills the window, no key strip or buttons')
+st = open(os.path.join(FW, 'core', '07c_settings.js'), encoding='utf-8').read()
+check('if (PLAYER_PAGE) SETTINGS_ROWS.push(' in st and all(n in st for n in ("'Sound'", "'Full screen'", "'Touch pad'", "'Signed in'")) and 'SETTINGS_VISIBLE' in st, 'Settings on the release page: Sound, Full screen, Touch pad, Signed in; more than five rows scroll')
+check("'Saved games'" in open(os.path.join(FW, 'core', '08_main.js'), encoding='utf-8').read(), 'the release page title offers Saved games')
+
 print('RESULT:', 'FAIL' if fails else 'PASS', f'({len(fails)} failures)')
 sys.exit(1 if fails else 0)
 

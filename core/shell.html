@@ -79,6 +79,13 @@
   button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   body.touch .keys { display: none; }
 
+  /* 0.3.4: the release page (game.json site.playerPage): the game alone, as big as the window allows at 16:9, on black */
+  body.player { padding: 0; gap: 0; background: #000; --reserve: 0px; }
+  body.player.touch { --reserve: 168px; }
+  body.player .frame { width: min(100vw, calc((100dvh - var(--reserve)) * 16 / 9)); max-width: none; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: #000; }
+  body.player .frame::before, body.player .frame::after, body.player .bar { display: none; }
+  body.player #screen { border-radius: 0; }
+
   /* Touch pad */
   .pad { display: none; width: min(100%, 520px); justify-content: space-between; align-items: center; gap: 12px; }
   body.touch .pad { display: flex; }

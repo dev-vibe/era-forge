@@ -536,6 +536,14 @@ function shadeHex(hex, amt) { const n = parseInt(hex.slice(1), 16); let r = n >>
 // On a host that signs players in, the site's pages set window.GAME_PLAYER from the host's cookie (game.json site.playerCookie) and every
 // save key carries the player's name, so people sharing a browser keep their own journeys (0.3.3). Unset: the plain key.
 const playerKey = key => window.GAME_PLAYER ? key + '@' + window.GAME_PLAYER : key;
+// 0.3.4: the release page (game.json site.playerPage; build_site.py sets window.GAME_SITE): no buttons around the game, so Sound, Full
+// screen, Touch pad and Sign out are Settings rows (07c_settings.js) and Saved games a title option (08_main.js)
+const PLAYER_PAGE = !!(window.GAME_SITE && window.GAME_SITE.player);
+const fullscreenOk = () => !!(document.fullscreenEnabled && document.documentElement.requestFullscreen);
+function fullscreenToggle() {
+  if (!fullscreenOk()) return;
+  try { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {}); } catch (e) {}
+}
 const SAVE_KEY = playerKey(window.GAME_SAVE_KEY || GAME.saveKey);   // hosted review tools use separate slots (build_site.py sets GAME_SAVE_KEY)
 function writeSave(data) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; } }
 // job fw-F3b: only a save of the current version (SAVE_VERSION, 01c_save.js) is offered; there is no migration from older ones

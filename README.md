@@ -82,6 +82,10 @@ A game with its own, older test hub keeps it; the generated page is added beside
 sessionStorage prefix of a test page's settings, default `<id>_test_controls_`; `saveBackupKey` the saved-games page's backup key,
 default `saveKey` with `_vN` turned into `_backup_vN`). A game may put its own file of the same name in `tools/site/` and it is used as it is.
 
+**The release page (0.3.4).** `game.json` `site.playerPage: true` makes the hosted game page (`/`) the game alone, filling the window:
+no key strip, buttons or links around it (test and review pages keep theirs and are reached by their address). Its Settings page gains
+Sound, Full screen, Touch pad and (with signed-in players) Signed in / Sign out; its title gains Saved games.
+
 **Signed-in players (0.3.3).** A host that signs each player in (the framework has no sign-in of its own: the host does it, e.g. a
 proxy in front of the site) names in `game.json` `site.playerCookie` the cookie it sets to the player's name (readable by the page;
 letters, digits, `_` and `-`, at most 32) and, optionally, `site.signOut` its sign-out path. Every hosted page then reads that cookie into
