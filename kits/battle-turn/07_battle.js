@@ -12,6 +12,10 @@
 //  Kept from v1: the party of three, a decoy drawing every attack, a revive song, getting up with 1 HP after a won
 //  fight, painted backdrops with everyone placed on real walkable ground (battleStage, job battle-place: the camera zoomed to the
 //  scene's scale, the line where the two sides met, the walk onto the marks).
+//  An enemy's `skills` (content kind enemies): [{ chance, heavy?, mult?, dmg?, debuff?, msg, tag?, fx?, sfx?,
+//    when?(e) (0.3.2: may it be planned this round), label? (0.3.2: shown over the foe while the party chooses, the one plan labelled),
+//    act? (0.3.2: a name; the game's own action instead of a blow: GAME_HOOKS.foeAct(e, plan) queues its steps and returns true) }]
+//  A fight's own options besides the kit's: drawBack(L, sx, sy) (0.3.2: drawn over the backdrop, under the fighters), onStart(B), onWin().
 // ============================================================
 const B = {};
 const BSPR = {};
@@ -385,7 +389,8 @@ function endTurn() {
 function makePlan(e, o = {}) {
   if (B.opts.duel) return duelPlan(e, o);
   let skill = null;
-  if (e.d.skills) for (const sk of e.d.skills) { if (o.noHeavy && sk.heavy) continue; if (o.used && o.used.includes(sk)) continue; if (Math.random() < sk.chance) { skill = sk; break; } }
+  // 0.3.2: a skill's `when(e)` says whether the foe may plan it this round (e.g. only while there is still something on the stage to break)
+  if (e.d.skills) for (const sk of e.d.skills) { if (o.noHeavy && sk.heavy) continue; if (o.used && o.used.includes(sk)) continue; if (sk.when && !sk.when(e)) continue; if (Math.random() < sk.chance) { skill = sk; break; } }
   const tag = skill ? (skill.tag || (skill.heavy ? 'Heavy' : skill.debuff ? 'Roar' : 'Skill')) : 'Cut';
   return { skill, tag, heavy: !!(skill && skill.heavy), tgt: o.tgt || pickTarget() };
 }
@@ -429,6 +434,10 @@ function pickTarget() {
 }
 function enemyAct(e, pl) {
   const skill = pl ? pl.skill : null; let tgt = null;
+  // 0.3.2: a skill with `act` (a name) is the game's own action, not a blow at the party (e.g. a foe cutting down the stage's lanterns): the
+  // game queues its steps with q() and returns true; anything else (false: nothing left to act on) falls through to an ordinary blow.
+  // A foe that is broken or down before its turn never acts, so breaking or beating it stops the action, as it stops a blow.
+  if (skill && skill.act && gameHook('foeAct', e, pl) === true) return;
   const df = diff();
   // its signature effect (07d): the skill's fx, or a flier's swoop
   const kind = skill && skill.fx ? skill.fx : (e.d.kind === 'crow' || e.d.kind === 'bat') ? 'swoop' : null;

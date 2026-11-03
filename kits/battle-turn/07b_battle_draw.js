@@ -244,6 +244,7 @@ function drawBattle() {
     L.imageSmoothingEnabled = false;
     if (!B.opts.paintImg && !B.opts.paint) drawBattleAmbient(B.bg, B.t);
     if (B.opts.fog && typeof drawFog === 'function') drawFog(L, B.opts.fog);
+    if (typeof B.opts.drawBack === 'function') B.opts.drawBack(L, sx, sy);   // 0.3.2: the fight's own layer over its backdrop, under the fighters (e.g. a stage's lantern strings), battle px from (sx, sy)
   }
   const intro = B.phase === 'intro' && !B.tr ? Math.max(0, 1 - B.t / 22) : 0;
   const drawShadow = (x, y, w) => { if (B.tr && B.tr.t < B.tr.len) w = Math.round(w); L.drawImage(shadowSprite(w, Math.max(6, w * 0.28)), Math.round(x - w / 2), Math.round(y - w * 0.14)); };
@@ -345,6 +346,7 @@ function drawBattleUI() {
     if (choosing || B.phase === 'busy') {
       let label = null, col = UI.ink;
       if (e.broken) { label = e.skip ? 'Broken' : 'Reeling'; col = UI.seal; }
+      else { const lp = (e.plans || []).find(pl => pl.skill && pl.skill.label); if (lp) { label = lp.skill.label; col = UI.seal; } }   // 0.3.2: a skill that names its own label is the one plan shown (e.g. 'Stage!')
       // (the move-intent labels, "Cut + Cut" / "Fire pot ▸ the hero", were removed at Ash's request on 26 Oct 2026: a planned
       //  Heavy still glows red; only a foe's Broken / Reeling state is labelled)
       if (label) { const tw = txtW(label, 10) + 16, tx = e.sx - tw / 2, ty = Math.max(46, e.sy - 20); win(tx, ty, tw, 13, 1); txt(label, e.sx, ty + 1, col, 10, 'center'); }
