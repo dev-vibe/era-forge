@@ -92,11 +92,36 @@ def site_names(game):
       testReady      the window flag a test page sets when its scenario is up (tests wait for it)                  default <ID>_TEST_READY
       controlsKey    the sessionStorage key prefix that keeps a test page's settings over a restart                default <id>_test_controls_
       saveBackupKey  the key the saved-games page keeps the previous journey under                                 default saveKey with _vN -> _backup_vN
+      playerCookie   the cookie a host that signs players in sets to the player's name (readable by the page;   default none: no player
+                     the host checks the sign-in itself): the hosted pages read it into window.GAME_PLAYER and
+                     every save key gets '@<name>' (0.3.3)
+      signOut        the host's sign-out path, linked beside the player's name in the pages' navigation           default none
     """
     site = game.get('site') or {}; gid = game['id']; save = game.get('saveKey') or gid + '_save_v1'
     return {'testReady': site.get('testReady') or gid.upper() + '_TEST_READY', 'controlsKey': site.get('controlsKey') or gid + '_test_controls_',
             'saveBackupKey': site.get('saveBackupKey') or (re.sub(r'_v(\d+)$', r'_backup_v\1', save) if re.search(r'_v\d+$', save) else save + '_backup'),
-            'saveKey': save}
+            'saveKey': save, 'playerCookie': site.get('playerCookie') or '', 'signOut': site.get('signOut') or ''}
+
+
+PLAYER_NAME = r'[A-Za-z0-9_-]{1,32}'   # what a player cookie may hold; anything else counts as no player
+
+
+def player_script(game):
+    """The first script of every hosted page when the game's host signs players in (site.playerCookie): window.GAME_PLAYER = the cookie's
+    name, or '' (0.3.3). Empty when the game names no player cookie."""
+    cookie = site_names(game)['playerCookie']
+    if not cookie: return ''
+    assert re.fullmatch(r'[A-Za-z0-9_-]+', cookie), f'site.playerCookie {cookie!r}: letters, digits, _ and - only'
+    return ('<script>window.GAME_PLAYER=(document.cookie.match(/(?:^|;\\s*)' + cookie + '=(' + PLAYER_NAME + ')(?:;|$)/)||[])[1]||\'\';</script>')
+
+
+def player_nav(game):
+    """The navigation's player slot: 'Playing as <name> · Sign out', shown only while a player is signed in (0.3.3)."""
+    names = site_names(game)
+    if not names['playerCookie']: return ''
+    out = (' · <a href="' + names['signOut'] + '">Sign out</a>') if names['signOut'] else ''
+    return ('<span class="host-player" hidden> · Playing as <b></b>' + out + '</span><script>(()=>{const s=document.currentScript.previousElementSibling;'
+            'if(window.GAME_PLAYER){s.querySelector(\'b\').textContent=window.GAME_PLAYER;s.hidden=false;}})();</script>')
 
 
 def has_test_jumps(gid):

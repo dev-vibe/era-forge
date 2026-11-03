@@ -1,21 +1,26 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">__PLAYER_SCRIPT__
 <title>__GAME__ — Saved games</title>
 <style>
 body{color:#eadcbf;background:#171014;font:17px/1.6 system-ui;max-width:660px;margin:40px auto;padding:0 22px}h1{color:#d4a14a;font-family:serif}button,a{color:#d4a14a}button{font:inherit;background:#291c20;border:1px solid #82633c;border-radius:6px;padding:8px 14px;cursor:pointer}button:disabled{opacity:.4;cursor:default}section{margin:30px 0;border-top:1px solid #634738;padding-top:12px}input{max-width:100%;font:inherit}#status{min-height:2em}small{color:#bcae98}
 </style></head><body>
 <p><a href="/">← Back to __GAME__</a></p><h1>Saved games</h1>
 <p>Keep a copy of your journey or bring a __GAME__ save file to this browser. Files stay on your device.</p>
+<p id="player" hidden>Signed in as <b></b>: these are your saves on this browser; other players' saves here stay their own.<span id="signout"> <a href="__SIGN_OUT__">Sign out</a></span></p>
 <section><h2>Download your journey</h2><p>In the game, open the menu and choose Save first. This downloads that last saved journey.</p>
 <button id="download">Download save</button> <button id="backup" hidden>Download previous save</button></section>
 <section><h2>Bring a journey here</h2><p>Choose a __GAME__ save file, check the journey, then import it. Your existing save will be kept as a backup.</p>
 <input id="file" type="file" accept=".json,application/json" aria-label="Choose a __GAME__ save file">
 <p id="candidate"></p><button id="import" disabled>Import this journey</button></section>
+<section id="before" hidden><h2>A journey from before sign-in</h2><p>This browser still has a journey saved before players signed in. Download it, then import it above to make it yours.</p>
+<button id="before-download">Download that save</button></section>
 <p id="status" role="status" aria-live="polite"></p>
 <small>Saves belong to this browser and website. Importing here does not change a save on another website. After importing, reload the game and choose Continue.</small>
 <script>
 'use strict';
-const KEY='__SAVE_KEY__', BACKUP='__BACKUP_KEY__'; let candidate=null;
+// 0.3.3: on a host that signs players in, each player's saves carry '@<name>' (core/01_core.js playerKey); the plain key is a journey saved before sign-in
+const P=window.GAME_PLAYER||'', at=k=>P?k+'@'+P:k, PLAIN='__SAVE_KEY__', KEY=at(PLAIN), BACKUP=at('__BACKUP_KEY__'); let candidate=null;
+if(P){const p=document.getElementById('player');p.querySelector('b').textContent=P;p.hidden=false;if(!'__SIGN_OUT__')document.getElementById('signout').remove();}
 const status=document.getElementById('status'), pick=document.getElementById('file'), apply=document.getElementById('import');
 function validSave(d){
   const object=x=>x && typeof x==='object' && !Array.isArray(x);
@@ -38,10 +43,12 @@ function download(key,name){
     a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='Your save file is ready.';
   }catch(e){status.textContent='This browser did not allow access to saved games.';}
 }
-document.getElementById('download').onclick=()=>download(KEY,'__GAMEID__-save.json');
+document.getElementById('download').onclick=()=>download(KEY,'__GAMEID__-save'+(P?'-'+P:'')+'.json');
+try{if(P&&localStorage.getItem(PLAIN))document.getElementById('before').hidden=false;}catch(e){}
+document.getElementById('before-download').onclick=()=>download(PLAIN,'__GAMEID__-save-before-sign-in.json');
 const backup=document.getElementById('backup');
 try{backup.hidden=!localStorage.getItem(BACKUP);}catch(e){}
-backup.onclick=()=>download(BACKUP,'__GAMEID__-previous-save.json');
+backup.onclick=()=>download(BACKUP,'__GAMEID__-previous-save'+(P?'-'+P:'')+'.json');
 pick.onchange=async()=>{
   candidate=null;apply.disabled=true;document.getElementById('candidate').textContent='';status.textContent='';
   try{

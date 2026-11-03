@@ -533,7 +533,10 @@ function uiStroke(g, ax, ay, bx, by, wd, R, col, alpha = 1, dry = 1) { themeUI('
 function shadeHex(hex, amt) { const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; const f = v => clamp(Math.round(amt < 0 ? v * (1 + amt) : v + (255 - v) * amt), 0, 255); return '#' + ((1 << 24) + (f(r) << 16) + (f(g) << 8) + f(b)).toString(16).slice(1); }
 
 // ---------------- Save ----------------
-const SAVE_KEY = window.GAME_SAVE_KEY || GAME.saveKey;   // hosted review tools use separate slots (build_site.py sets GAME_SAVE_KEY)
+// On a host that signs players in, the site's pages set window.GAME_PLAYER from the host's cookie (game.json site.playerCookie) and every
+// save key carries the player's name, so people sharing a browser keep their own journeys (0.3.3). Unset: the plain key.
+const playerKey = key => window.GAME_PLAYER ? key + '@' + window.GAME_PLAYER : key;
+const SAVE_KEY = playerKey(window.GAME_SAVE_KEY || GAME.saveKey);   // hosted review tools use separate slots (build_site.py sets GAME_SAVE_KEY)
 function writeSave(data) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; } }
 // job fw-F3b: only a save of the current version (SAVE_VERSION, 01c_save.js) is offered; there is no migration from older ones
 function readSave() { try { const s = localStorage.getItem(SAVE_KEY), d = s ? JSON.parse(s) : null; return d && d.v === SAVE_VERSION ? d : null; } catch (e) { return null; } }

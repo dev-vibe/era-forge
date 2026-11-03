@@ -75,5 +75,21 @@ check(os.path.realpath(sample) == os.path.realpath(os.path.join(FW, 'sample-game
 src = [os.path.basename(f) for f in gamepaths.source_files(gamepaths.SAMPLE_ID)]
 check(src == sorted(src) and set(src) >= {f for f, d in names.items() if d[0] in ('core', 'systems')}, 'the sample game\'s code: the engine\'s files and its own, in file-name order')
 
+# ---- signed-in players (0.3.3): a host that signs players in scopes every save key to the player's name; without one nothing changes
+sys.path.insert(0, os.path.join(FW, 'tools'))
+import buildlib
+plain = {'id': 'g', 'saveKey': 'g_save_v1'}
+signed = dict(plain, site={'playerCookie': 'g_player', 'signOut': '/logout'})
+check(buildlib.player_script(plain) == '' and buildlib.player_nav(plain) == '', 'a game without site.playerCookie gets no player script and no player slot')
+check('g_player=' in buildlib.player_script(signed) and 'window.GAME_PLAYER' in buildlib.player_script(signed), 'site.playerCookie: the pages read that cookie into window.GAME_PLAYER')
+check('href="/logout"' in buildlib.player_nav(signed) and 'hidden' in buildlib.player_nav(signed), 'the player slot links site.signOut and stays hidden until a player is signed in')
+try: buildlib.player_script(dict(plain, site={'playerCookie': 'bad;cookie'})); check(False, 'a player cookie name with ; is refused')
+except AssertionError: check(True, 'a player cookie name with ; is refused')
+core = open(os.path.join(FW, 'core', '01_core.js'), encoding='utf-8').read()
+check("const SAVE_KEY = playerKey(" in core and "key + '@' + window.GAME_PLAYER" in core, 'the save key carries @<player> when window.GAME_PLAYER is set')
+saves = open(os.path.join(FW, 'tools', 'site', 'saves.html'), encoding='utf-8').read()
+check('__PLAYER_SCRIPT__' in saves and "KEY=at(PLAIN)" in saves and "BACKUP=at(" in saves, 'the saved-games page reads the player and uses the same scoped keys (save and backup)')
+
 print('RESULT:', 'FAIL' if fails else 'PASS', f'({len(fails)} failures)')
 sys.exit(1 if fails else 0)
+

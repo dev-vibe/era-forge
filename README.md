@@ -82,6 +82,14 @@ A game with its own, older test hub keeps it; the generated page is added beside
 sessionStorage prefix of a test page's settings, default `<id>_test_controls_`; `saveBackupKey` the saved-games page's backup key,
 default `saveKey` with `_vN` turned into `_backup_vN`). A game may put its own file of the same name in `tools/site/` and it is used as it is.
 
+**Signed-in players (0.3.3).** A host that signs each player in (the framework has no sign-in of its own: the host does it, e.g. a
+proxy in front of the site) names in `game.json` `site.playerCookie` the cookie it sets to the player's name (readable by the page;
+letters, digits, `_` and `-`, at most 32) and, optionally, `site.signOut` its sign-out path. Every hosted page then reads that cookie into
+`window.GAME_PLAYER` before the game starts, the game's save key (and so its title settings) and the saved-games page's keys get
+`@<name>`, so people sharing a browser keep their own journeys; the navigation shows "Playing as <name> · Sign out"; the saved-games page
+offers a journey saved before sign-in (the plain key) as a download to import. Without the cookie (local pages, tests, a preview the host
+does not sign in) everything uses the plain keys, as before.
+
 ## The release gate
 
 GitHub Actions is off, so the gate is local and is run **before every release**, from a clean checkout of the commit to be released:

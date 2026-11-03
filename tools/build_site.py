@@ -36,6 +36,8 @@ GID = gamepaths.DEFAULT
 ROOT = Path(gamepaths.game_dir(GID))
 OUT = ROOT / 'site'
 NAME = gamepaths.game_json(GID).get('name') or GID
+GAME_JSON = gamepaths.game_json(GID)
+PLAYER, PLAYER_NAV = fw.player_script(GAME_JSON), fw.player_nav(GAME_JSON)   # 0.3.3: a host that signs players in (game.json site.playerCookie)
 
 
 def catalogue(gid):
@@ -87,14 +89,14 @@ def document(fragment, review=None, category=None):
         fragment = fragment.replace('<script>', '<script>window.GAME_SAVE_KEY='+json.dumps(GID+'_review_'+review)+';', 1)
     split = fragment.index('<div class="frame">')
     head, body = fragment[:split], fragment[split:]
-    nav = f'<nav class="host-nav" aria-label="{escape(NAME)} pages"><a href="/">Play</a> · <a href="/test/">Test pages</a> · <a href="/saves/" target="_blank" rel="noopener">Saved games</a></nav>'
+    nav = f'<nav class="host-nav" aria-label="{escape(NAME)} pages"><a href="/">Play</a> · <a href="/test/">Test pages</a> · <a href="/saves/" target="_blank" rel="noopener">Saved games</a>'+PLAYER_NAV+'</nav>'
     style = '<link rel="stylesheet" href="/test-tools.css">'
     if review == 'road': style += '<style>body{--reserve:235px}body.touch{--reserve:350px}</style>'
     tools = ''
     if category:
         options = ''.join(f'<option value="{slug}"'+(' selected' if slug == category else '')+f'>{escape(title)}</option>' for slug,title,*_ in TESTS)
         tools = '<div class="test-tools"><label>Test page <select id="test-category">'+options+'</select></label> <button class="chip" id="test-restart">Restart this test</button><p id="test-status" role="status">Loading test…</p></div><script src="/test-tools.js"></script>'
-    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'+head+style+'</head><body>'+body+tools+nav+'</body></html>'
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'+PLAYER+head+style+'</head><body>'+body+tools+nav+'</body></html>'
 
 
 def test_hub():
@@ -115,17 +117,17 @@ def game_site(gid):
         for source in (src/folder).iterdir(): link(source, dest/folder/source.name)
     fragment = (src/'index.html').read_text(encoding='utf-8')
     split = fragment.index('<div class="frame">')
-    nav = f'<nav class="host-nav" aria-label="Pages"><a href="/">Play {escape(NAME)}</a> · <a href="/test/">Test pages</a></nav>'
+    nav = f'<nav class="host-nav" aria-label="Pages"><a href="/">Play {escape(NAME)}</a> · <a href="/test/">Test pages</a>{PLAYER_NAV}</nav>'
     dest.mkdir(parents=True, exist_ok=True)
     (dest/'index.html').write_text('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-        + fragment[:split] + '<link rel="stylesheet" href="/test-tools.css"></head><body>' + fragment[split:] + nav + '</body></html>', encoding='utf-8')
+        + PLAYER + fragment[:split] + '<link rel="stylesheet" href="/test-tools.css"></head><body>' + fragment[split:] + nav + '</body></html>', encoding='utf-8')
     if (src/'tests_fragment.html').is_file():   # job fw-F7: the game registers test jumps; its test page is at /games/<id>/test/ (relative paths one folder up)
         test = (src/'tests_fragment.html').read_text(encoding='utf-8').replace('"img/', '"../img/').replace('"audio/', '"../audio/')
         cut = test.index('<div class="frame">')
-        tnav = f'<nav class="host-nav" aria-label="Pages"><a href="/games/{gid}/">Play</a> · <a href="/games/{gid}/test/">Test page</a> · <a href="/test/">All test pages</a> · <a href="/">{escape(NAME)}</a></nav>'
+        tnav = f'<nav class="host-nav" aria-label="Pages"><a href="/games/{gid}/">Play</a> · <a href="/games/{gid}/test/">Test page</a> · <a href="/test/">All test pages</a> · <a href="/">{escape(NAME)}</a>{PLAYER_NAV}</nav>'
         (dest/'test').mkdir(exist_ok=True)
         (dest/'test'/'index.html').write_text('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-            + test[:cut] + '<link rel="stylesheet" href="/test-tools.css"></head><body>' + test[cut:] + tnav + '</body></html>', encoding='utf-8')
+            + PLAYER + test[:cut] + '<link rel="stylesheet" href="/test-tools.css"></head><body>' + test[cut:] + tnav + '</body></html>', encoding='utf-8')
 
 
 def scene_browser(fragment, scene):
@@ -151,10 +153,11 @@ def scene_browser(fragment, scene):
 def site_values():
     """What the framework's site files (tools/site/) say about this game, all from game.json: the slots in their text. A game can name some of
     them in game.json `site` (a build-only key: no page ships it; buildlib.site_names lists them with their defaults)."""
-    g = gamepaths.game_json(GID); names = fw.site_names(g)
+    g = GAME_JSON; names = fw.site_names(g)
     return {'__GAME__': NAME, '__GAMEID__': g.get('id') or GID, '__HERO__': (g.get('hero') or {}).get('name', 'The hero'),
             '__CURRENCY__': ((g.get('currency') or {}).get('label') or 'coin').lower(), '__SAVE_KEY__': names['saveKey'],
-            '__BACKUP_KEY__': names['saveBackupKey'], '__TEST_READY__': names['testReady'], '__CONTROLS_KEY__': names['controlsKey']}
+            '__BACKUP_KEY__': names['saveBackupKey'], '__TEST_READY__': names['testReady'], '__CONTROLS_KEY__': names['controlsKey'],
+            '__PLAYER_SCRIPT__': PLAYER, '__SIGN_OUT__': names['signOut']}
 
 
 def site_file(name):
