@@ -47,6 +47,13 @@ browser from `p.chromium.launch()` and pages from `testlib.page`, and keep state
 Review screenshots are skipped in runner runs (`ERAFORGE_SHOTS=0`); `--shots`, or running the test file by itself, takes them; a
 screenshot a check reads back is taken with `check=True`. `--shard I/N` and `--list` split and list a run.
 
+**Memory and hangs (0.3.6).** A warm tab only grows (about 170 MB a test on Ronin: decoded pictures and caches), so the runner gives each
+tab a budget from the memory the run may use (a cloud session's cgroup limit counts, not just the machine's RAM) and a worker replaces its
+tab after a test above it; it prints `memory: ... MB free for this run; a warm tab is replaced after a test above N MB`, and runs fewer
+workers when memory is short. A tab whose renderer is killed (out of memory) fails its test with "Target crashed" and a note in the log.
+No test can hang a run: one still running after `--timeout` seconds (default 900) fails and its worker is replaced, with its browser.
+Never send CDP commands to a page after its `crash` event: they never return.
+
 ## Test jumps and the generated test page
 
 A game registers the moments worth starting straight into with `defineTestJump(id, { label, group, order, flags, inv, run })` in its own

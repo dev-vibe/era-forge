@@ -275,6 +275,26 @@ def _orig(pg, name):
 # in software at 60 fps kept about 1.4 CPUs busy for each real-clock test, beside everything else.
 HALF_RATE = "(() => { const raf = window.requestAnimationFrame.bind(window); window.requestAnimationFrame = cb => { let skip = true; const tick = ts => { if (skip) { skip = false; raf(tick); } else cb(ts); }; return raf(tick); }; })();"
 _W = None
+# MEMORY (job tests-8, 4 Nov 2026). The warm tab's renderer never gives back what a test's page used (decoded pictures and caches; its JS
+# heap stays small): on Ronin it grew about 170 MB a test, to 3.8 GB after the quick group in one worker. A cloud session's memory limit
+# (6 GB) then killed a renderer mid-test. So after each test the worker measures its tab's renderer and, above ERAFORGE_TAB_MB (the
+# runner sets it from the machine's memory, see run_tests.py), replaces the tab: the old renderer exits and its memory is freed; the new
+# tab stays in the same browser context, whose HTTP cache serves the pictures again (about 3.4 s once, against 4.5 s for a new context).
+# A crashed tab (its renderer killed) is replaced too, and never touched again: a CDP call to a crashed page never returns, which is how
+# one killed renderer used to hang the whole run.
+TAB_MB = int(os.environ.get('ERAFORGE_TAB_MB') or 0)   # 0: no budget (a test run outside run_tests.py, or a machine with memory to spare)
+
+
+def process_mb(pid):
+    """Resident memory of a process in MB, or None where it cannot be read (no /proc and no psutil)."""
+    try:
+        with open(f'/proc/{pid}/statm') as f: return int(f.read().split()[1]) * os.sysconf('SC_PAGE_SIZE') // 2**20
+    except (OSError, ValueError, AttributeError): pass
+    try:
+        import psutil
+        return psutil.Process(pid).memory_info().rss // 2**20
+    except Exception: return None
+
 WORKER_ARGS = ['--autoplay-policy=no-user-gesture-required']   # the workers' Chromium; a test launching with these (wakeup) shares it
 _TAB_ATTRS = ('goto', 'reload', 'wait_for_timeout', 'wait_for_function', 'locator', 'screenshot', 'step', 'js', 'until', 'render', 'draw', 'add_init_script', 'on', 'close')
 _RELEASE_KEYS = ('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'Enter', 'Escape', 'Space', 'Shift', 'Tab')
@@ -297,6 +317,7 @@ class _Worker:
         self.proxy = _BrowserProxy(self)
         self.ctx = self.tab = self.cdp = None
         self.in_use = False; self.origins = set(); self.scripts = []; self.listeners = []; self.extra = []
+        self.crashed = False; self.bcdp = None
         # ONE ORIGIN: the warm tab stays warm only while it stays on one origin (another port, or localhost after 127.0.0.1, is a cold boot:
         # about 10 CPU s with the fonts). So the worker serves every folder from one server on one port: testlib.serve(dir) points it at the
         # test's folder (a worker runs one test at a time). The image and sound files are the same files in every folder (hard links), so
@@ -323,11 +344,10 @@ class _Worker:
         return _by_dir[key]
 
     def _new_tab(self):
-        try:
-            if self.ctx: self.ctx.close()
-        except Exception: pass
-        self.ctx = self.browser.new_context(viewport={'width': 1300, 'height': 760})
+        if self.ctx is None: self.ctx = self.browser.new_context(viewport={'width': 1300, 'height': 760})
         self.tab = self.ctx.new_page(); self.cdp = self.ctx.new_cdp_session(self.tab); self.cdp.send('Page.enable')   # (its init scripts only run with Page enabled)
+        self.crashed = False
+        self.tab.on('crash', lambda *_: setattr(self, 'crashed', True))
         from urllib.parse import urlsplit
         def seen(frame):
             u = urlsplit(frame.url)
@@ -340,6 +360,7 @@ class _Worker:
         t = self.tab; self.in_use = True
         t.set_viewport_size(viewport)
         def add_init_script(script=None, path=None):
+            if self.crashed: raise RuntimeError('the page crashed (its renderer was killed: out of memory?)')
             src = script if script is not None else open(path, encoding='utf-8').read()
             self.scripts.append(self.cdp.send('Page.addScriptToEvaluateOnNewDocument', {'source': src})['identifier'])
         def on(event, f):
@@ -354,15 +375,40 @@ class _Worker:
             try: t.remove_listener(event, f)
             except Exception: pass
         for name in _TAB_ATTRS: vars(t).pop(name, None)
-        try:
-            for sid in self.scripts: self.cdp.send('Page.removeScriptToEvaluateOnNewDocument', {'identifier': sid})
-            t.goto('about:blank')   # the game's document goes; its images stay in the renderer's memory cache for the next test
-            for k in _RELEASE_KEYS: t.keyboard.up(k)   # no key left held for the next test
-            for o in self.origins:
-                self.cdp.send('Storage.clearDataForOrigin', {'origin': o, 'storageTypes': 'local_storage,indexeddb,websql,cookies,cache_storage,service_workers,file_systems'})
-        except Exception:
-            self.tab = None   # a broken tab is replaced (a cold boot) rather than reused
+        if self.crashed or t.is_closed():   # never send a crashed page anything: the call would never return
+            print('testlib: the test page crashed (its renderer was killed: out of memory?); the worker opens a new tab', flush=True)
+            self.drop_tab()
+        else:
+            try:
+                for sid in self.scripts: self.cdp.send('Page.removeScriptToEvaluateOnNewDocument', {'identifier': sid})
+                t.goto('about:blank')   # the game's document goes; its images stay in the renderer's memory cache for the next test
+                for k in _RELEASE_KEYS: t.keyboard.up(k)   # no key left held for the next test
+                for o in self.origins:
+                    self.cdp.send('Storage.clearDataForOrigin', {'origin': o, 'storageTypes': 'local_storage,indexeddb,websql,cookies,cache_storage,service_workers,file_systems'})
+            except Exception:
+                self.drop_tab()   # a broken tab is replaced (a cold boot) rather than reused
         self.scripts.clear(); self.listeners.clear(); self.origins.clear()
+
+    def drop_tab(self, context=True):
+        """Close the warm tab (its renderer exits and its memory is freed); the next test gets a new tab. context=False keeps the browser
+        context, whose HTTP cache (in the browser process) then serves the new tab's pictures without the server: a cheaper cold boot."""
+        try:
+            if not context and self.tab and not self.crashed: self.tab.close()
+            elif self.ctx: self.ctx.close(); self.ctx = None
+        except Exception:
+            try: self.ctx.close()
+            except Exception: pass
+            self.ctx = None
+        self.tab = self.cdp = None; self.crashed = False
+
+    def tab_mb(self):
+        """Resident memory of this browser's renderers in MB (after end_test only the warm tab's is left), or None if unknown."""
+        try:
+            if self.bcdp is None: self.bcdp = self.browser.new_browser_cdp_session()
+            procs = self.bcdp.send('SystemInfo.getProcessInfo')['processInfo']
+        except Exception: return None
+        sizes = [process_mb(p['id']) for p in procs if p.get('type') == 'renderer']
+        return None if not sizes or None in sizes else sum(sizes)
 
     def end_test(self):
         self.release(); self.root = None
@@ -370,6 +416,11 @@ class _Worker:
             try: x.close()
             except Exception: pass
         self.extra.clear()
+        if TAB_MB and self.tab is not None:
+            mb = self.tab_mb()
+            if mb is not None and mb > TAB_MB:
+                print(f'testlib: the warm tab used {mb} MB (budget {TAB_MB} MB); the worker opens a new tab', flush=True)
+                self.drop_tab(context=False)
 
 
 def worker_start(pw, browser):

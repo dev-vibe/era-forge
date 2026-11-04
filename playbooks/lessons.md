@@ -99,3 +99,23 @@ its `keyCap` and `emphasis` widgets.
 
 *Example (Ronin's answer, not a default):* ages 11 to 14, grade 6 or below (7 for history), sentences about 10 words and none over 20,
 examine texts two boxes at most, 16 px dialogue, one dark vermilion highlight, key caps, a beat of 8 frames.
+
+## Test runs that never finish (Ronin job tests-8, 4 Nov 2026)
+
+What the job built: a crash-safe warm tab, a memory budget for warm tabs, a per-test time limit, process groups, thread-read workers.
+CHANGELOG 0.3.6 has the details.
+
+1. **"The runner waits after the last test" was a test that never reported.** Count the reported tests against the group before
+   suspecting the runner's exit. Here one worker sat inside a test whose renderer the kernel had killed (`dmesg`: "Memory cgroup out of
+   memory: Killed process ... (chrome-headless)").
+2. **A cloud session's memory limit is its cgroup's, not the machine's.** `free` said 8 GB; the session's cgroup allowed 6 GB. Read the
+   cgroup (`/proc/self/cgroup`, then `memory.max` or `memory.limit_in_bytes` up the tree) before sizing anything.
+3. **A reused tab keeps its memory.** The warm tab's renderer grew about 170 MB a test (decoded pictures, caches) while its JS heap stayed
+   at 40 MB; a simulated memory-pressure signal freed it only sometimes. Replacing the tab is the dependable release; keep its browser context, whose HTTP cache lives in the browser process, and the
+   new tab boots in about 3.4 s instead of 4.5 s.
+4. **Never send CDP commands to a crashed page.** Playwright raises "Target crashed" for page calls, but a CDP session's `send` to a
+   crashed page never returns. Watch the page's `crash` event and drop the tab.
+5. **Give every waiting loop a ceiling, even on a test clock.** A test-clock test needs no real time, so a generous wall-clock limit in the
+   runner (not in the tests) only ever catches a hang, and turns "never finishes" into a failure with a log.
+6. **Find the culprit by measuring, one variable at a time:** reproduce with the runner, sample memory each second (`mon.py`-style),
+   then cut the crash down to a few lines (kill a renderer with `kill -9`, try each clean-up call) until the one call that hangs is found.
