@@ -10,7 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
-| 0.3.6 (4 Nov 2026) | `(this commit)` | no | the test runner never hangs: a test past `--timeout` (default 900 s) is stopped with its worker; a crashed tab fails its test instead of hanging; warm tabs get a memory budget from the machine's memory; workers read by threads (Windows) |
+| 0.3.6 (4 Nov 2026) | `aa98e15c1a9854df0929d447a3f7345fe493d616` | no | the test runner never hangs: a test past `--timeout` (default 900 s) is stopped with its worker; a crashed tab fails its test instead of hanging; warm tabs get a memory budget from the machine's memory; workers read by threads (Windows) |
 | 0.3.5 (4 Nov 2026) | `b57d4840b7ae8e8266a5fb7b5233508cf138fb44` | no (optional: `GAME_HOOKS.battleLesson`) | a game can teach inside its fights: one battle-lesson hook (a cut's ring speed, a line after a grade, at a round's plans, after a foe's blow, at a break, under the standoff's prompt and after it); the coach line at 13 px and able to stay while the player chooses; key caps on a dark panel readable |
 | 0.3.4 (3 Nov 2026) | `50ff8b795aa2b2ef51ef0de95edc70f9df461d0c` | no (optional: `game.json` `site.playerPage`) | the hosted game page as a release page: the game alone filling the window; Sound, Full screen, Touch pad and Sign out in Settings, Saved games on the title; more than five Settings rows scroll |
 | 0.3.3 (3 Nov 2026) | `abc1f5a310ab2ac6b90007c43b7778f65dfbc33f` | no (optional: `game.json` `site.playerCookie`, `site.signOut`) | a host that signs players in gets saves per player: every hosted page reads the player's name from the host's cookie, save keys carry `@<name>`, the navigation shows the player and Sign out |
@@ -29,7 +29,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
 
-## 0.3.6 (4 Nov 2026)
+## 0.3.6 (4 Nov 2026, commit `aa98e15`)
 
 Ronin job tests-8: the quick group's runner sometimes never finished in a cloud session (every test it reported had passed; one test
 never reported). Cause, measured: a worker's warm tab never gives back what a test's pages used (decoded pictures and caches; its JS
