@@ -154,6 +154,13 @@ with sync_playwright() as p:
     check(ev("B.phase === 'lose'"), 'a lost breakout offers the defeat choice')
     tap('KeyZ', 300)   # Try again
     check(ev("G.state === 'battle' && B.phase !== 'lose' && B.enemies.length === 3"), 'Try again restarts the same fight')
+    # 0.3.5: the battle-lesson hook. Without it a cut's ring closes in 18 ticks and no line shows; with it the game sets both
+    LES = """async (hook) => { if (hook) GAME_HOOKS.battleLesson = (e, i) => e === 'ring' ? 40 : e === 'grade' ? 'a lesson line' : undefined; else delete GAME_HOOKS.battleLesson;
+      B.coach = null; B.tm = null; B.lastGrade = null; B.q = []; B.phase = 'busy'; for (const e of B.enemies) e.hp = e.maxHp = 999; strikeStep(B.party[0], B.enemies[0], {});
+      await __T.untilJs('!!B.tm', 60); const lead = B.tm ? B.tm.at - B.tm.from : null; await __T.untilJs('B.lastGrade != null', 200);
+      const out = { lead, coach: B.coach ? B.coach.text : null }; delete GAME_HOOKS.battleLesson; return out; }"""
+    no, yes = pg.js(LES, False), pg.js(LES, True)
+    check(no == {'lead': 18, 'coach': None} and yes == {'lead': 40, 'coach': 'a lesson line'}, f'the battle-lesson hook: none = as before ({no}); a game\'s hook sets the ring and the line ({yes})')
     # review jumps (90_jumps.js; the animation review page links them)
     ev("battleRetry && (G.state = 'scene')")
     ev("cinJump('envoys')"); check(advance("G.state === 'mini'", 300, 'jump envoys'), 'jump envoys: the cutscene plays through to the stake wall')

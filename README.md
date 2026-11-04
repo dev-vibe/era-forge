@@ -13,7 +13,7 @@ core/          loop, input, audio, assets, save spaces, the test clock, the mode
 systems/       items and shops, party, Chronicle, bonds and letters, pressure, travel
 kits/
   topdown/     painted scenes, walk areas, occluders, doors and warps, water shimmer, songs; editor.html; painters/ (Ground Painter pages)
-  battle-turn/ timing ring, intents, posture, battle draw and effect recipes
+  battle-turn/ timing ring, intents, posture, the battle-lesson hook, battle draw and effect recipes
   minigame/    the shell, rhythm core, timing and posture helpers
 themes/        plain/ (the test theme every game can build with) and README.md (the theme contract)
 tools/         eraforge.py (the command), build.py + buildlib.py (pages and the generated test page), build_site.py, gamepaths.py, the scene

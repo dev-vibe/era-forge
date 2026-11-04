@@ -10,6 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.3.5 (4 Nov 2026) | `PENDING` | no (optional: `GAME_HOOKS.battleLesson`) | a game can teach inside its fights: one battle-lesson hook (a cut's ring speed, a line after a grade, at a round's plans, after a foe's blow, at a break, under the standoff's prompt and after it); the coach line at 13 px and able to stay while the player chooses; key caps on a dark panel readable |
 | 0.3.4 (3 Nov 2026) | `50ff8b795aa2b2ef51ef0de95edc70f9df461d0c` | no (optional: `game.json` `site.playerPage`) | the hosted game page as a release page: the game alone filling the window; Sound, Full screen, Touch pad and Sign out in Settings, Saved games on the title; more than five Settings rows scroll |
 | 0.3.3 (3 Nov 2026) | `abc1f5a310ab2ac6b90007c43b7778f65dfbc33f` | no (optional: `game.json` `site.playerCookie`, `site.signOut`) | a host that signs players in gets saves per player: every hosted page reads the player's name from the host's cookie, save keys carry `@<name>`, the navigation shows the player and Sign out |
 | 0.3.2 (3 Nov 2026) | `0e12c6afce09e1c3e7580b3a712a8369022bc6c5` | no (optional: a skill's `when`, `label`, `act` + `GAME_HOOKS.foeAct`; a fight's `drawBack`) | a foe can plan the game's own action (not a blow at the party), show that one plan as a label, plan a skill only when it may; a fight can draw its own layer over its backdrop |
@@ -26,6 +27,30 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.3.5 (4 Nov 2026, commit `PENDING`)
+
+Ronin job 11c (Ash, 4 Nov 2026: teach the battle by doing, "each idea taught once, at the fight where it first matters ... No tutorial
+screens"). What to teach, where and in what words stays the game's; the kit gives it the moments:
+- **`GAME_HOOKS.battleLesson(ev, info)`** (`kits/battle-turn/07_battle.js`, the comment above `lessonHook`): `'ring'` before a cut's
+  press ring opens (return a number: its lead in ticks, default 18, e.g. a slower first ring; the timing windows never change),
+  `'prompt'` the first timed hits' prompt over the ring (a string replaces it, null hides it), `'grade'` a timed cut was graded
+  (`{ g, res, kind }`), `'round'` the foes have planned the round (the game may change `e.plans`), `'foeHit'` a foe's blow landed
+  (`{ e, tgt, pl, guarded, dmg }`), `'break'` a foe is broken (a line replaces the default one; null or false: none), `'standoff'` a
+  boss standoff opens (the game may change `so`, e.g. `so.feint = -1`; a string is drawn under its prompt, in the lower letterbox bar),
+  `'standoffEnd'` the standoff resolved. `'grade'`, `'round'`, `'foeHit'`, `'break'` and `'standoffEnd'` may return a coach line: a
+  string (about 3 s) or `{ text, hold: true }` (it stays while the player chooses and goes when the action starts).
+- **The coach line** (the box over the fighters) is drawn at 13 px (was 11), the battle message's size, two lines of up to 460 px; it is
+  cleared when a fight starts (it used to carry into the next fight for up to 200 frames).
+- **Marked text on a dark panel** (`win(..., 1)`, the coach line, a name tab): key caps and the highlight use their over-dark-ground look
+  (a `{a}` cap there was a light box with light letters, unreadable).
+- Without the hook a fight plays exactly as before (the first three cuts' ring prompt and the one-time Break line are the defaults).
+- Gate: `cincinnatus_test.py` checks that no hook means an 18-tick ring and no line, and that a game's hook sets both.
+
+### What a game must change
+
+Nothing. Without `GAME_HOOKS.battleLesson` a fight plays as before; the coach line is two px larger and a key cap on a dark panel is now
+readable (a game's own theme keeps its `keyCap` widget: it is now called with `onPanel` false over a style-1 panel).
 
 ## 0.3.4 (3 Nov 2026, commit `50ff8b7`)
 

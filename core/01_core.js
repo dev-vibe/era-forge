@@ -501,8 +501,9 @@ function drawRuns(runs, x, y, c, size, head, sh, onPanel, n = Infinity) {
 function txtMark(s, x, y, col = '#f2e8d2', size = 10, align = 'left', shadow = true, n = Infinity) {
   const p = uiPanelAt(x, y + size * 0.5), [c, head, sh] = themeUI('text')(col, p, shadow), runs = markRuns(s);
   X.textAlign = 'left';
-  const w = align === 'left' ? 0 : runsW(runs, size, head, !!p);
-  drawRuns(runs, align === 'center' ? x - w / 2 : align === 'right' ? x - w : x, y, c, size, head, sh, !!p, n);
+  const light = !!p && p.style !== 1;   // 0.3.5: a style-1 panel is dark (cream text), so its key caps and highlight are the over-dark ones
+  const w = align === 'left' ? 0 : runsW(runs, size, head, light);
+  drawRuns(runs, align === 'center' ? x - w / 2 : align === 'right' ? x - w : x, y, c, size, head, sh, light, n);
 }
 function outlineTxt(s, x, y, col, size = 10, align = 'center') {
   setFont(size); X.textAlign = align; X.fillStyle = UI.outline;

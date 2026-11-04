@@ -384,7 +384,7 @@ function drawBattleUI() {
       X.lineWidth = 1.2 * S; X.strokeStyle = k < 0.15 ? '#fff4d0' : 'rgba(245,236,216,.9)'; X.beginPath(); X.arc(cx, cy, r * S, 0, 6.283); X.stroke(); X.restore();
       uiMark(tm.x, tm.y, 3.6, 0.95);
     }
-    if (G.f && (G.f.tmN || 0) < 3 && tm.kind === 'press') headTxt(Input.touchMode ? 'Tap A as the ring closes!' : `Press ${keyName('a')} as the ring closes!`, 320, 58, '#f6e4b0', 12, 'center', 700);
+    if (G.f && (G.f.tmN || 0) < 3 && tm.kind === 'press') { const lp = lessonHook('prompt', { kind: 'press', n: G.f.tmN || 0 }), s = lp !== undefined ? lp : Input.touchMode ? 'Tap A as the ring closes!' : `Press ${keyName('a')} as the ring closes!`; if (s) headTxt(s, 320, 58, '#f6e4b0', 12, 'center', 700); }
     if (G.f && (G.f.tmN || 0) < 3 && tm.kind === 'beat') headTxt(Input.touchMode ? 'Tap A on the beat!' : `Press ${keyName('a')} on the beat!`, 320, 58, '#f6e4b0', 12, 'center', 700);
   }
   // the standoff prompt
@@ -392,10 +392,12 @@ function drawBattleUI() {
     const so = B.so;
     headTxt(B.enemies[0].d.name, 320, 52, UI.ink, 18, 'center', 800, null);
     if (so.t > 30) headTxt(so.held ? 'Wait for the steel to flash ... release!' : `Hold ${keyName('a')}.`, 320, 300, UI.cream, 13, 'center', 700);
+    if (so.line && so.t > 30) headTxt(so.line, 320, 333, UI.cream, 13, 'center', 600);   // 0.3.5: the game's lesson line, in the lower letterbox bar
     return;
   }
   if (B.msg) { const ls = wrap(B.msg, 440, 13).slice(0, 2); const w = Math.max(...ls.map(l => txtW(l, 13))) + 48; win(320 - w / 2, 12, w, 18 + ls.length * 19); ls.forEach((l, i) => txt(l, 320, 21 + i * 19, '#f4ecd8', 13, 'center')); }
-  if (B.coach) { const ls = wrap(B.coach.text, 420, 11).slice(0, 2), w = Math.max(...ls.map(l => txtW(l, 11))) + 40; win(320 - w / 2, 214, w, 12 + ls.length * 15, 1); ls.forEach((l, i) => txt(l, 320, 220 + i * 15, '#f4ecd8', 11, 'center')); }
+  // the coach line (0.3.5: 13 px, was 11, the battle message's size; charter-style readable text)
+  if (B.coach) { const ls = wrap(B.coach.text, 460, 13).slice(0, 2), w = Math.max(...ls.map(l => txtW(l, 13))) + 40; win(320 - w / 2, 210, w, 12 + ls.length * 18, 1); ls.forEach((l, i) => txt(l, 320, 216 + i * 18, '#f4ecd8', 13, 'center')); }
   // the cut-in band: the fighter's eyes and the technique's name
   for (const tg of B.tags) drawTechTag(tg);
   if (B.cut) drawCutIn(B.cut);

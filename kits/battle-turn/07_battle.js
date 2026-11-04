@@ -58,8 +58,9 @@ function startBattle(ids, opts = {}) {
   if (hasBoss) { const bi = B.enemies.findIndex(e => e.d.scale); if (bi > 0) { const b = B.enemies.splice(bi, 1)[0]; B.enemies.unshift(b); B.enemies.forEach((e, i) => { e.x = pos[i][0]; e.y = pos[i][1]; }); } }
   const boss = !!(opts.boss && !opts.noLose && !opts.noStandoff);
   Object.assign(B, { opts, bg: opts.bg || 'field', phase: boss ? 'standoff' : 'intro', t: 0, at: 0, tick: 0, sel: 0, sub: 0, target: 0, q: [], msg: '', pops: [], fx: [], shake: 0, lines: [], li: 0, pending: null, turn: 0, ally: 0, allyList: [],
-    tm: null, stop: 0, impact: 0, zoom: null, cut: null, wipe: 0, so: null, ink: boss ? 1 : 0, bgc: null, bgInk: null, loseSel: 0, round: 0, sigSeen: {}, tags: [] });
-  if (boss) { const hard = cfg().diff === 'hard'; B.so = { t: 0, glint: ri(110, 190), held: false, res: null, feint: hard ? ri(50, 95) : -1, flick: 0 }; B.so.feint = B.so.feint >= B.so.glint - 12 ? -1 : B.so.feint; }
+    tm: null, stop: 0, impact: 0, zoom: null, cut: null, wipe: 0, so: null, coach: null,   /* 0.3.5: a coach line never carries into the next fight */ ink: boss ? 1 : 0, bgc: null, bgInk: null, loseSel: 0, round: 0, sigSeen: {}, tags: [] });
+  if (boss) { const hard = cfg().diff === 'hard'; B.so = { t: 0, glint: ri(110, 190), held: false, res: null, feint: hard ? ri(50, 95) : -1, flick: 0 }; B.so.feint = B.so.feint >= B.so.glint - 12 ? -1 : B.so.feint;
+    const sl = lessonHook('standoff', { so: B.so }); if (typeof sl === 'string') B.so.line = sl; }
   B.stage = null; B.tr = null;
   if (onScene) battleStage(B.opts);   // the camera window and everyone's marks on the scene (job battle-place)
   // the walk onto the marks (07b drawBattle): the field view eases into the fight's window while everyone goes from where they stood
@@ -261,6 +262,20 @@ const solo = () => B.party.length === 1;
 // the action queue: { d: ticks, start(), upd(t) -> true ends the step early }
 function q(d, start, upd) { B.q.push({ d, start, upd, t: 0 }); }
 function pop(x, y, text, col, big, huge) { B.pops.push({ x, y, text, col, t: 0, big: !!big, huge: !!huge }); }
+// ---------------- lessons (Eraforge 0.3.5) ----------------
+// GAME_HOOKS.battleLesson(ev, info): the game's own teaching inside a fight (what to teach, where and with what words is the game's).
+//   'ring'        { p, tg, o }   a press ring is about to open: return a number = its lead in ticks (default 18; e.g. a slower first ring)
+//   'prompt'      { kind, n }    the first timed hits' prompt over the ring (n = G.f.tmN): a string replaces it, null hides it
+//   'grade'       { g, res, kind } a timed cut was graded (g = what it counts as; res = the press: perfect, good, early, late, none)
+//   'round'       { round }      the foes have planned the round (the game may change their e.plans)
+//   'foeHit'      { e, tgt, pl, guarded, dmg } a foe's blow landed
+//   'break'       { e }          a foe is broken: a line replaces the default one (null or false: no line; undefined: the default)
+//   'standoff'    { so }         a boss standoff opens (the game may change so, e.g. so.feint = -1): a string = a line under its prompt
+//   'standoffEnd' { res }        the standoff resolved (perfect, good, early, late, none)
+// 'grade', 'round', 'foeHit', 'break' and 'standoffEnd' may return a coach line: a string (shown about 3 s), or { text, hold: true }
+// (it stays while the player chooses and goes when the action starts). Without the hook a fight is exactly as before.
+const lessonHook = (ev, info) => gameHook('battleLesson', ev, info || {});
+function setCoach(c) { if (!c) return; B.coach = typeof c === 'string' ? { t: 0, text: c } : { t: 0, text: c.text, hold: !!c.hold }; }
 const gainKi = (p, n) => { if (!n) return; const s = memberStats(p.m); p.m.ki = Math.min(s.maxKi, p.m.ki + n); };
 
 // ---------------- timing ----------------
@@ -280,6 +295,7 @@ function gradePop(g, x, y) {
   else if (r === 'early') pop(x, y, 'Too soon', '#a89c84');
   // the first timed hits of the game teach themselves (G.f.tmN counts them)
   if (G.f) G.f.tmN = (G.f.tmN || 0) + 1;
+  setCoach(lessonHook('grade', { g, res: r, kind: B.tm ? B.tm.kind : null }));
 }
 
 function memberDamage(p, e, mult, pierce) {
@@ -328,7 +344,9 @@ function breakEnemy(e) {
   bfx('crack', { lines: fxCracks(e.x, hitY(e), 7, e.d.scale ? 46 : 32, 1), grow: 3, red: true, a: 0.9, life: 26 });
   bfx('chips', { ps: fxChips(e.x, hitY(e), 12, { v: [1.6, 4], sz: [2.4, 5], up: 1, cols: ['#16101a', '#2a1c20'], edge: 'rgba(201,67,47,.95)' }), life: 36 });
   pop(e.x, e.y - (e.d.scale ? 150 : 104), 'Broken!', '#ff9070', true);
-  if (!B.taughtBreak && G.f && !G.f.breakSeen) { G.f.breakSeen = 1; B.coach = { t: 0, text: 'Broken! Its next move is lost, and it takes more damage until it recovers.' }; }
+  const lc = lessonHook('break', { e });
+  if (lc !== undefined) setCoach(lc);
+  else if (!B.taughtBreak && G.f && !G.f.breakSeen) { G.f.breakSeen = 1; B.coach = { t: 0, text: 'Broken! Its next move is lost, and it takes more damage until it recovers.' }; }
 }
 
 // the acting member dashes in, cuts one (or every) enemy, and dashes back
@@ -353,7 +371,7 @@ function strikeStep(p, target, o) {
     q(5, () => sc('draw', 5), t => { p.off = dx * bEase(t / 5); p.pose = 'cut'; });
   } else {
     q(1, () => { pickTg(); if (!tg) return; dx = o.all ? Math.min(-60, (alive().reduce((a, e) => a + e.x, 0) / alive().length) + 60 - p.x) : Math.min(-60, tg.x + (tg.d.scale ? 74 : 48) - p.x);
-      if (!o.preGrade) startTiming('press', tg.x, hitY(tg), 18); p.pose = 'ready'; sc('dash', 8); if (o.sig) techFx(o.sig, 'go', p, [tg]); });
+      if (!o.preGrade) { const ld = lessonHook('ring', { p, tg, o }); startTiming('press', tg.x, hitY(tg), typeof ld === 'number' && ld > 0 ? ld : 18); } p.pose = 'ready'; sc('dash', 8); if (o.sig) techFx(o.sig, 'go', p, [tg]); });
     q(12, null, t => {
       const u = t / 12;
       p.off = t < 3 ? Math.sin(t / 3 * Math.PI) * 5 : dx * bEase((t - 3) / 9);
@@ -411,6 +429,7 @@ function beginRound() {
   B.round++;
   B.turn = B.party.findIndex(up); B.phase = 'cmd'; B.sel = 0; B.msg = B.round === 1 && B.opts.coach ? B.opts.coach : '';   // Job 12j: a teaching bout's first prompt
   planEnemies();
+  setCoach(lessonHook('round', { round: B.round }));
 }
 function enemyPhaseStep() {
   q(1, () => {
@@ -478,6 +497,7 @@ function enemyAct(e, pl) {
     spatter(px, py - 30, guarded ? 4 : 8, 1);
     pop(px, py - 64, String(dmg), '#ff9070', true);
     if (guarded) pop(px, py - 84, 'Guarded', '#a0c8f0');
+    setCoach(lessonHook('foeHit', { e, tgt, pl, guarded, dmg }));
     if (tgt.m.hp <= 0) { tgt.guard = tgt.cover = tgt.debuff = 0; pop(px, py - 84, 'Down', '#e0b0a0'); sfx('down'); if (!solo() && standing().length) B.msg = `${tgt.name} is down!`; }
   });
   q(10, () => { e.off0 = e.off; e.offY = 0; if (e.alive) esc('recover', 10, false); }, t => { e.off = e.off0 * (1 - t / 10); });
@@ -646,6 +666,7 @@ function standoffUpdate() {
 function standoffResolve(res) {
   const p = B.party[0], boss = B.enemies[0];
   B.phase = 'busy';
+  setCoach(lessonHook('standoffEnd', { res }));
   if (res === 'perfect' || res === 'good') {
     q(1, () => { B.msg = res === 'perfect' ? 'First cut! A perfect draw.' : 'First cut!'; sfx('crit'); });
     strikeStep(p, boss, { mult: 1.8, post: res === 'perfect' ? 6 : 4, preGrade: res, sig: 'firstcut', label: res === 'perfect' ? 'First cut! A perfect draw.' : 'First cut!' });
@@ -674,7 +695,7 @@ function battleUpdate() {
   if (B.cut) { B.cut.t++; if (B.cut.t > cutinLen()) B.cut = null; }
   B.tags.forEach(t => t.t++); B.tags = B.tags.filter(t => t.t < 56);
   if (B.zoom) { B.zoom.t++; if (B.zoom.t > B.zoom.dur) B.zoom = null; }
-  if (B.coach) { B.coach.t++; if (B.coach.t > 200) B.coach = null; }
+  if (B.coach) { B.coach.t++; if (B.coach.hold ? (B.coach.t > 20 && B.phase === 'busy') || B.coach.t > 3600 : B.coach.t > 200) B.coach = null; }
   B.pops.forEach(p => p.t++); B.pops = B.pops.filter(p => p.t < (p.big ? 60 : 50));
   B.fx.forEach(f => { f.t++; if (f.vy != null) { f.x += f.vx; f.y += f.vy; f.vy += 0.25; } }); B.fx = B.fx.filter(f => f.t < (f.life || 26) || (f.type === 'pot' && f.progress < 1));
   B.enemies.forEach(e => { if (e.flash > 0) e.flash--; if (e.hurt > 0) e.hurt--; if (!e.alive && e.fade > 0 && !B.opts.duel) e.fade -= 0.04; });
