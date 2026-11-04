@@ -21,7 +21,7 @@ tools/         eraforge.py (the command), build.py + buildlib.py (pages and the 
                (theme_shots), review_page, the balance simulator (bal_sim, bal_dump); tools/site/ (the hosted site's own files, with slots)
 testkit/       testlib.py, run_tests.py, worker.py; tests/ (the framework's own checks)
 skills/        agent skills: next-job, new-game, fw-upgrade
-playbooks/     engineering conventions: testing, the setup interview, the lessons log
+playbooks/     engineering conventions: testing, the setup interview, the lessons log, the game design playbook
 sample-game/   Cincinnatus, 458 BC: the game the release gate builds and plays
 bin/           the npm command (`eraforge`)
 ```
@@ -117,4 +117,5 @@ framework release, but a break found there is fixed first.
 
 Tests on the test clock and green before merge; one branch per job with a preview; nothing published from code that is not committed and
 pushed; approvals recorded with their words and date; new raw art pushed to the game's assets repo before hand-off. Engine and pipeline
-lessons go in `playbooks/lessons.md`; setting lessons stay with the game.
+lessons go in `playbooks/lessons.md`; setting lessons stay with the game. What Ronin taught about designing and producing a game
+with agents (design options, writing, image-model art, animation, cutscenes, testing, hand-offs) is `playbooks/game-design.md`.

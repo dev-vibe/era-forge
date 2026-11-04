@@ -11,7 +11,8 @@ A pointer, not a rulebook: the game's repo holds its rules. Replace `<game repo>
    `node_modules/eraforge`). Locally, use the person's existing clone and never run git in it through a remote shell.
 2. **Read** the game's `CLAUDE.md`, then the files it names: its runbook (rules), status file (job queue, open items), charter (the game's
    design rules: they win over older docs) and story bible. The framework's conventions are in `node_modules/eraforge/README.md` and
-   `node_modules/eraforge/playbooks/` (testing, lessons).
+   `node_modules/eraforge/playbooks/` (testing, lessons, and `game-design.md`: the craft and process rules for art, text, cutscenes,
+   tests and hand-offs).
 3. **Do the job** the person named, or the first open job in the status file. If it waits on the person, give them the exact prompt or
    question and stop. Confirm the job and its first action in one line.
 4. **Work** on `job/<id>-<short-name>`: `npx eraforge test quick` after every change, the game's full gate before hand-off
