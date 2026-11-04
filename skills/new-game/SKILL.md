@@ -6,7 +6,8 @@ description: Use when the person wants to start a new game on Eraforge: run the 
 # Start a new game on Eraforge
 
 1. **Interview first.** Run `playbooks/setup-interview.md` with the person, one area at a time. Offer the example answers (Ronin's) as
-   examples, never as defaults. Nothing is drawn or coded before the charter is approved.
+   examples, never as defaults. Nothing is drawn or coded before the charter is approved. `playbooks/game-design.md` has the design
+   options Ronin proved and why (offer them as options), and the text-voice area the interview does not yet ask.
 2. **Write the charter** (`charter.md`: the answers, each change logged later with its date and reason) and **`game.json`** (id, name,
    title, screen, kits, theme, save key, hero, start, and the charter answers the engine reads).
 3. **Lay out the repo** as the README's "What a game supplies" table says: `src/` (content registered through `content(kind)` and
