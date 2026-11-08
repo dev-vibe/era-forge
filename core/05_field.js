@@ -183,12 +183,30 @@ function subtitlePages(text) {
   if (ss.length === 2 && ss.every(x => wrap(x, SUB_WRAP, SUB_SIZE).length === 1)) return [ss];
   return pageText(text, SUB_WRAP, SUB_SIZE, 2);
 }
+// the reading log's key for a line (01c_save.js): who and the line's own text (markup and all), hashed (32-bit FNV-1a, base 36). A game's
+// tools compute the same key to find a line again (FNV-1a over the UTF-16 code units of who + '\u0001' + text).
+function readKey(who, text) {
+  const s = String(who || '') + '\u0001' + String(text); let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(36);
+}
+const readLogOn = () => !!(GAME.text && GAME.text.readLog);
+function readLogClose() {   // the box is closing: add its time to the log
+  const r = Dialog.read; Dialog.read = null;
+  if (!r || !readLogOn()) return;
+  const log = sysState('read'), e = log[r.key];
+  if (!e && Object.keys(log).length >= READ_LOG_MAX) return;
+  const row = e || (log[r.key] = [0, 0, 0]);
+  row[0]++; row[1] += Math.max(0, frame - r.t0); row[2] += r.skip ? 1 : 0;
+}
 function openDialog(who, text, opt = {}) {
   // {a} {start} ... name the keys of the active control scheme (01b_input.js), drawn as key caps; [[...]] is the highlight (01_core.js)
   const sub = typeof cineOn === 'function' && cineOn() && !(typeof CROWD === 'object' && CROWD.top);
   const marked = sub ? subtitlePages(text) : pageText(text, DLG_WRAP, DLG_SIZE, 3);
   Dialog.spr = speakerSprite(who);
-  Object.assign(Dialog, { active: true, who, marked, pages: marked.map(pg => pg.map(markPlain)), page: 0, shown: 0, beat: 0, choices: opt.choices || null, sel: 0, cb: opt.cb || null });
+  if (Dialog.active && Dialog.read) readLogClose();   // a box replaced while still up counts as closed
+  Object.assign(Dialog, { active: true, who, marked, pages: marked.map(pg => pg.map(markPlain)), page: 0, shown: 0, beat: 0, choices: opt.choices || null, sel: 0, cb: opt.cb || null,
+    read: readLogOn() ? { key: readKey(who, text), t0: frame, skip: 0 } : null });
 }
 // Text speed (Settings, 07c_settings.js): letters a frame at Normal / Fast, the whole page at Instant. A short beat after the end of a
 // sentence and after '...' (GAME.text.beat frames at Normal, half at Fast; 0 = none) lets a joke's turn and a silence land.
@@ -201,7 +219,7 @@ function dialogBeatAt(s, i) {   // true when a beat belongs after the first i le
 function dialogUpdate() {
   const flat = Dialog.pages[Dialog.page].join(''), total = flat.length;
   if (Dialog.shown < total) {
-    if (btn('a')) { Dialog.shown = total; Dialog.beat = 0; return; }
+    if (btn('a')) { Dialog.shown = total; Dialog.beat = 0; if (Dialog.read) Dialog.read.skip = 1; return; }
     const hurry = held('a') || held('b'), sp = textSpeed();
     if (Dialog.beat > 0 && !hurry) { Dialog.beat--; return; }
     if (sp === Infinity) { Dialog.shown = total; return; }
@@ -217,13 +235,13 @@ function dialogUpdate() {
     if (nav('down')) { Dialog.sel = (Dialog.sel + 1) % Dialog.choices.length; sfx('cursor'); }
     if (btn('a') || btn('b')) {
       const i = btn('b') ? Dialog.choices.length - 1 : Dialog.sel; sfx(btn('b') ? 'back' : 'ok');
-      Dialog.active = false; const cb = Dialog.cb; cb && cb(i);
+      readLogClose(); Dialog.active = false; const cb = Dialog.cb; cb && cb(i);
     }
     return;
   }
   if (btn('a') || btn('b')) {
     if (!last) { Dialog.page++; Dialog.shown = 0; Dialog.beat = 0; }
-    else { Dialog.active = false; const cb = Dialog.cb; if (cb) cb(); else nextStep(); }
+    else { readLogClose(); Dialog.active = false; const cb = Dialog.cb; if (cb) cb(); else nextStep(); }
   }
 }
 // the hero thinking: his line in brackets, in the theme's soft ink (also under the letterbox, 05l_cinema.js)

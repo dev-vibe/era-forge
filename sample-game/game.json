@@ -33,5 +33,6 @@
   "minigames": { "firstPlayFeeds": true },
   "art": { "anchor": "area_farm", "anchorOriginal": "ronin-assets outputs/cincinnatus/style_samples/sample_farm_B.png", "style": "painterly gouache (art-prompts.md, Style B)" },
   "cinema": { "staged": true, "video": "loops" },
-  "release": { "host": "ronin-site", "path": "/games/cincinnatus/", "aiDisclosure": { "where": "credits", "toolsNamed": true } }
+  "release": { "host": "ronin-site", "path": "/games/cincinnatus/", "aiDisclosure": { "where": "credits", "toolsNamed": true } },
+  "text": { "_about": "Eraforge 0.3.8: readLog keeps the reading log in the save (core/01c_save.js, sysState('read')): how long each line stayed up and whether it was pressed through while typing.", "readLog": true }
 }

@@ -163,6 +163,12 @@ with sync_playwright() as p:
     check(no == {'lead': 18, 'coach': None} and yes == {'lead': 40, 'coach': 'a lesson line'}, f'the battle-lesson hook: none = as before ({no}); a game\'s hook sets the ring and the line ({yes})')
     # review jumps (90_jumps.js; the animation review page links them)
     ev("battleRetry && (G.state = 'scene')")
+    # 0.3.8: the reading log (game.json text.readLog): every line shown so far is in the save's `read` space, with its time up
+    rl = ev("(() => { const L = G.sys.read || {}, rows = Object.values(L); return { n: rows.length, ok: rows.every(r => r.length === 3 && r[0] >= 1 && r[1] > 0 && r[2] >= 0 && r[2] <= r[0]), saved: !!(saveData().sys.read) }; })()")
+    check(rl['n'] >= 10 and rl['ok'] and rl['saved'], f"the reading log holds the lines read so far ({rl['n']}), each shown, timed and in the save")
+    check(ev("readKey('Gonzō', 'Ōtsu — test')") == '1be3m27', 'readKey is FNV-1a over UTF-16, base 36 (game tools compute the same key)')
+    ev("GAME.text.readLog = false; openDialog('X', 'Not logged.'); Dialog.active = false; readLogClose(); GAME.text.readLog = true")
+    check(ev("!G.sys.read[readKey('X', 'Not logged.')]"), 'with readLog off nothing is logged')
     ev("cinJump('envoys')"); check(advance("G.state === 'mini'", 300, 'jump envoys'), 'jump envoys: the cutscene plays through to the stake wall')
     ev("miniFinish && MG && (MG.result = { value: { quality: 'sound' } }) && miniFinish()")
     check(ev("G.state === 'battle' || Script.active || !!G.card"), 'the jump carries on into the breakout')
