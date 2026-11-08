@@ -33,6 +33,13 @@ defineSaveSpace('play', { init: () => ({ time: 0 }), loaded: d => { if (!d.sys.p
 // seconds played in save d (after migrateSave), or undefined when the save never counted them
 function playTime(d) { const s = d && d.sys && d.sys.play; return s && Number.isFinite(s.time) ? s.time : d && Number.isFinite(d.pt) && d.pt >= 0 ? d.pt : undefined; }
 
+// The reading log (0.3.8): how players read the game's lines, for the game's writers. Only when the game opts in
+// (game.json "text": { "readLog": true }). One entry per line ever shown, keyed by readKey(who, text) (05_field.js):
+// [times shown, frames it stayed up (all pages, until it closed), times the player pressed through it while it was still typing].
+// It travels with the save (export and import too), so a writer can see where players lingered and where they pressed on.
+const READ_LOG_MAX = 6000;   // lines; past this nothing new is added (a long game keeps its first lines, the save stays small)
+defineSaveSpace('read', { init: () => ({}) });
+
 const SAVE_MIGRATIONS = [];
 function defineSaveMigration(from, id, run) { SAVE_MIGRATIONS.push({ from, id, run }); }
 // A save is JSON, so the copy is exact; the caller's object is never changed.
