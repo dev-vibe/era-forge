@@ -159,7 +159,7 @@ def site_values():
     g = GAME_JSON; names = fw.site_names(g)
     return {'__GAME__': NAME, '__GAMEID__': g.get('id') or GID, '__HERO__': (g.get('hero') or {}).get('name', 'The hero'),
             '__CURRENCY__': ((g.get('currency') or {}).get('label') or 'coin').lower(), '__SAVE_KEY__': names['saveKey'],
-            '__BACKUP_KEY__': names['saveBackupKey'], '__TEST_READY__': names['testReady'], '__CONTROLS_KEY__': names['controlsKey'],
+            '__BACKUP_KEY__': names['saveBackupKey'], '__JOURNEYS__': str(int((g.get('saves') or {}).get('journeys') or 6)), '__TEST_READY__': names['testReady'], '__CONTROLS_KEY__': names['controlsKey'],
             '__PLAYER_SCRIPT__': PLAYER, '__SIGN_OUT__': names['signOut']}
 
 

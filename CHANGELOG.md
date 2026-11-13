@@ -10,6 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.4.0 (13 Nov 2026) | `(this commit; recorded once merged)` | no (optional: `game.json` `saves`, `GAME_HOOKS.autosaveBlock`; drop the menu's `save` page) | several journeys per player in the browser, each saving itself when the player has control again; the title's Continue (latest), New Journey (a free journey) and Saved games (Play, Delete); the save files page lists every journey and imports as a new one |
 | 0.3.9 (13 Nov 2026) | `c82024b7ffb64deb21f0b9f6df700d0afe12be15` | no (optional: an item's `throw`, `GAME_HOOKS.battleItem`) | thrown items: an item with `throw` is thrown at one foe or every foe in a fight (fixed damage, posture, the pot's flight and burst), the boss fights included; a game may answer a throw with a line |
 | 0.3.8 (8 Nov 2026) | `2b64be4dfe5c5b316fea128157d7689fbce51d48` | no (optional: `game.json` `text.readLog`) | the reading log: a game can keep, in each save, how long every line stayed up and whether it was pressed through while typing (`sysState('read')`, `readKey(who, text)`), for its writers |
 | 0.3.7 (4 Nov 2026) | `bb62627d7216bf93485ce8ea3f13c4f6387b0458` | no | docs only: `playbooks/game-design.md`, the game design playbook (what Ronin taught, as options and rules), linked from the README and the `next-job` and `new-game` skills |
@@ -31,6 +32,36 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.4.0 (13 Nov 2026)
+
+Ronin job saves (Ash, 13 Nov 2026: "make the saves automatic for each savegame ... continue can stay and show latest, but saves should be
+a submenu that has multiple saves"; browser only, "i want multiple people to play without adding persistence in the BE"; no earlier saves
+inside a journey: "no need, bc chapters so short"). `core/01f_journeys.js`:
+- **Journeys.** A player keeps up to `game.json` `saves.journeys` journeys (default 6) in the browser, one save each. Journey 1 is the
+  game's save key as before (so a save made before 0.4.0 is journey 1), journey n the key with `_j<n>`; `@<player>` still comes last.
+  `SAVE_KEY` is now the journey being played (`let`): the latest when the page opens, a free one after New Journey, the one picked under
+  Saved games (`journeyUse(n)`). `journeyList()`, `journeyRead(n)`, `journeyFree()`, `journeyLatest()`, `journeyDelete(n)`. The title
+  settings key stays one per player (`playerKey(SAVE_BASE) + '_title_settings'`, the same string as before).
+- **Autosave.** `autosaveTick()` runs after every `update()`: it saves when the player has had control for half a second (in a scene, on a
+  field map, on the road or on the map; no dialog, script, card, stamp, fade, cutscene, item moment, sleep, road change, warp or hop; not
+  on a scene test page) and either something happened since the last save (the player was not in control: a talk, a fight, a cutscene, the
+  menu, a shop, a minigame, a new place) or `saves.every` seconds of play went by (default 120). `GAME_HOOKS.autosaveBlock()` returning
+  true holds it back; `saves.autosave: false` turns it off. `Autosave.count` and `Autosave.last` are there for tests.
+- **The title.** With a journey: Continue (the latest journey, its summary as before), New Journey, Saved games, Settings; without one: New
+  Journey, Settings (and Saved games on the release page, for its save files page). New Journey starts in the first free journey; with
+  none free it opens Saved games with a note. **Saved games** is a panel on the title: the journeys newest first (place, level, play
+  time, when it was saved; six rows, then it scrolls); a journey offers Play, Delete (asked again) and Back; on the release page a last
+  row opens the save files page (it used to be the title option itself).
+- **The save files page** (`tools/site/saves.html`, `/saves/`) lists every journey with its own Download (`<game>-journey-<n>[-<player>].json`);
+  an import becomes the first free journey and never replaces one (none free: it says so). A backup made by an import before 0.4.0 can
+  still be downloaded. `build_site.py` fills `__JOURNEYS__`.
+- The menu's stock `save` page still writes the journey being played, for a game that wants a Save in its menu.
+
+### What a game must change
+
+Nothing has to change: saves already in the browser are journey 1. A game that wants autosave alone drops `save` from its menu pages
+(Ronin did). A test that checks the title's options sees Saved games after New Journey when a save exists.
 
 ## 0.3.9 (13 Nov 2026, commit `c82024b`)
 

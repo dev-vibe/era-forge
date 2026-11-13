@@ -7,19 +7,23 @@
 // ---------------- Title ----------------
 // Title settings are separate from journey data. A newer saved journey wins over
 // older title preferences; changing title settings never overwrites its progress.
-const Title = { sel: 0, hasSave: false, save: null, diff: null, settings: false, override: false, age: 0 };
+const Title = { sel: 0, hasSave: false, save: null, diff: null, settings: false, override: false, age: 0, saves: null };
 // The title's light for a save (null = no save) is the game's, read through a hook with its own predicates (job fw-F4): { key, dawn (0..1 the dawn grade), mist (0..1), child (true: the companion figure, game.json titleArt.child, stands
 // beside the hero) }. A game without the hook gets plain daylight.
 const TITLE_TIER_DAY = { key: 'day', dawn: 0, mist: 0, child: false };
 const titleTier = save => gameHook('titleTier', save) || TITLE_TIER_DAY;
-const titleOptions = () => (Title.hasSave ? ['Continue', 'New Journey', 'Settings'] : ['New Journey', 'Settings']).concat(PLAYER_PAGE && window.GAME_SITE.saves ? ['Saved games'] : []);   // 0.3.4: the release page's Saved games
-const titleSettingsKey = () => SAVE_KEY + '_title_settings';
+// 0.4.0: Continue plays the latest journey; Saved games lists every journey (01f_journeys.js), shown when there is one, or on the release
+// page (0.3.4) for its save files page (import)
+const titleOptions = () => Title.hasSave ? ['Continue', 'New Journey', 'Saved games', 'Settings'] :
+  ['New Journey'].concat(PLAYER_PAGE && window.GAME_SITE.saves ? ['Saved games'] : [], ['Settings']);
+const titleSettingsKey = () => playerKey(SAVE_BASE) + '_title_settings';   // one per player, whichever journey is played (0.4.0)
 function titleConfig(c) {
   c = c || {};
   return { diff: DIFF_IDS.includes(c.diff) ? c.diff : 'standard', aid: AID_IDS.includes(c.aid) ? c.aid : 'standard',
     speed: SPEEDS.includes(c.speed) ? c.speed : 1, ctl: CONTROL_SCHEMES.includes(c.ctl) ? c.ctl : 'auto' };
 }
 function titleRefresh() {
+  journeyUse(journeyLatest() || 1); Title.saves = null;
   const d = readSave(); Title.save = d && d.hero ? d : null; Title.hasSave = !!Title.save;
   let pref = null; try { pref = JSON.parse(localStorage.getItem(titleSettingsKey())); } catch (_) {}
   Title.override = !!(pref && pref.cfg && Number.isFinite(pref.t) && (!Title.save || pref.t > (Title.save.t || 0)));
@@ -44,6 +48,7 @@ function titleUpdate() {
   Title.age++;
   const opts = titleOptions();
   if (Music.name !== GAME.music.title) playMusic(GAME.music.title);
+  if (Title.saves) { savesUpdate(); return; }   // 0.4.0: the Saved games panel (01f_journeys.js)
   if (Title.settings) {
     if (btn('b') || btn('start')) { Title.settings = false; sfx('back'); return; }
     const before = JSON.stringify(cfg()); settingsUpdate();
@@ -57,6 +62,8 @@ function titleUpdate() {
     if (btn('a')) {
       sfx('ok'); const id = DIFF_IDS[Title.diff], prior = titleConfig(cfg()); Title.diff = null;
       G.cfg = { ...prior, diff: id, aid: Title.override && id === prior.diff ? prior.aid : DIFF[id].aid };
+      const n = journeyFree(); if (!n) { savesOpen(); return; }
+      journeyDelete(n); journeyUse(n);   // 0.4.0: a new journey in a free slot (an unreadable old save there goes)
       newGame();
     }
     return;
@@ -66,12 +73,13 @@ function titleUpdate() {
   if (btn('a')) {
     sfx('ok'); const o = opts[Title.sel];
     if (o === 'Settings') { Title.settings = true; Menu.sub = 0; return; }
-    if (o === 'Saved games') { location.href = window.GAME_SITE.saves; return; }   // 0.3.4: the saved-games page (download, import), in this tab
+    if (o === 'Saved games') { savesOpen(); return; }   // 0.4.0: the journeys (01f_journeys.js); the save files page is its last row
     if (o === 'Continue') {
-      const d = readSave(), selected = titleConfig(cfg()), override = Title.override;
-      if (d && d.hero) { warp(() => { loadData(d); if (override) G.cfg = selected; }); return; }
+      const n = journeyLatest(), d = n && journeyRead(n);
+      if (d && d.hero) { savesPlay(d, n); return; }
       titleRefresh(); return;
     }
+    if (!journeyFree()) { savesOpen(`All ${JOURNEY_CFG.journeys} journeys are in use: delete one to start a new journey.`); return; }
     Title.diff = DIFF_IDS.indexOf(cfg().diff);
   }
 }
@@ -79,6 +87,7 @@ function newGame() {
   itemFXReset();
   G.f = {}; G.sys = {}; G.hero = newHero(); G.allies = {}; G.active = []; G.inv = {}; G.map = null;   // job fw-F3c: clearing G.sys puts the map cursor back at game.json start.location (05_travel.js)
   playMusic(GAME.music.title);
+  autosaveReset();   // 0.4.0: nothing to save until the player has control
   G.state = 'intro';
   // Job 8b: the playable prologue in the painted scenes (05d_story.js); the old tile-map start is the fallback when the paintings are missing
   if (typeof window.TEST_START === 'function' && !gameHook('ownTestStart')) { warp(() => window.TEST_START()); return; }   // Job 8g-r4: a test page's own start (e.g. west_open_test.js)
@@ -100,6 +109,7 @@ function drawTitleUI() {
     txt('{b} Back', 120, 300, UI.soft, 11);
   }
   if (Title.diff != null) drawDiffPick(Title.diff, t);
+  if (Title.saves) drawSaves();
 }
 
 // ---------------- Game over ----------------
@@ -122,6 +132,10 @@ function drawGameover() {
 
 // ---------------- Main loop ----------------
 function update() {
+  update1();
+  autosaveTick();   // 0.4.0: saves itself when the player has control again (01f_journeys.js)
+}
+function update1() {
   if (G.hero && G.state !== 'title') sysState('play').time += 1 / 60;   // play time (01c_save.js)
   chronTick();
   if (G.fadeDir) {

@@ -545,10 +545,15 @@ function fullscreenToggle() {
   if (!fullscreenOk()) return;
   try { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {}); } catch (e) {}
 }
-const SAVE_KEY = playerKey(window.GAME_SAVE_KEY || GAME.saveKey);   // hosted review tools use separate slots (build_site.py sets GAME_SAVE_KEY)
+const SAVE_BASE = window.GAME_SAVE_KEY || GAME.saveKey;   // hosted review tools use separate slots (build_site.py sets GAME_SAVE_KEY)
+// 0.4.0: a player keeps several journeys (core/01f_journeys.js). SAVE_KEY is the key of the journey being played: journey 1 is the plain
+// key (so a save from before 0.4.0 is journey 1), journey n the key with _j<n>. journeyUse(n) moves it; it starts on the latest journey.
+let SAVE_KEY = playerKey(SAVE_BASE);
+// writeSave and readSave write and read the journey being played (01f_journeys.js)
 function writeSave(data) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); return true; } catch (e) { return false; } }
 // job fw-F3b: only a save of the current version (SAVE_VERSION, 01c_save.js) is offered; there is no migration from older ones
-function readSave() { try { const s = localStorage.getItem(SAVE_KEY), d = s ? JSON.parse(s) : null; return d && d.v === SAVE_VERSION ? d : null; } catch (e) { return null; } }
+function readSave() { return readSaveAt(SAVE_KEY); }
+function readSaveAt(key) { try { const s = localStorage.getItem(key), d = s ? JSON.parse(s) : null; return d && d.v === SAVE_VERSION ? d : null; } catch (e) { return null; } }
 
 // ---- generated image assets (embedded as data URIs by build.py; procedural art is the fallback) ----
 const IMG = {};

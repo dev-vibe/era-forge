@@ -86,9 +86,11 @@ check('href="/logout"' in buildlib.player_nav(signed) and 'hidden' in buildlib.p
 try: buildlib.player_script(dict(plain, site={'playerCookie': 'bad;cookie'})); check(False, 'a player cookie name with ; is refused')
 except AssertionError: check(True, 'a player cookie name with ; is refused')
 core = open(os.path.join(FW, 'core', '01_core.js'), encoding='utf-8').read()
-check("const SAVE_KEY = playerKey(" in core and "key + '@' + window.GAME_PLAYER" in core, 'the save key carries @<player> when window.GAME_PLAYER is set')
+check("let SAVE_KEY = playerKey(SAVE_BASE)" in core and "key + '@' + window.GAME_PLAYER" in core, 'the save key carries @<player> when window.GAME_PLAYER is set')
 saves = open(os.path.join(FW, 'tools', 'site', 'saves.html'), encoding='utf-8').read()
-check('__PLAYER_SCRIPT__' in saves and "KEY=at(PLAIN)" in saves and "BACKUP=at(" in saves, 'the saved-games page reads the player and uses the same scoped keys (save and backup)')
+check('__PLAYER_SCRIPT__' in saves and "KEY=at(PLAIN)" in saves and "BACKUP=at(" in saves and "jkey=n=>at(PLAIN+(n>1?'_j'+n:''))" in saves and 'JMAX=__JOURNEYS__' in saves, 'the saved-games page reads the player and uses the same scoped keys (every journey, the old backup)')
+jr = open(os.path.join(FW, 'core', '01f_journeys.js'), encoding='utf-8').read()
+check("playerKey(SAVE_BASE + (n > 1 ? '_j' + n : ''))" in jr and 'function autosaveTick()' in jr and "autosaveTick();" in open(os.path.join(FW, 'core', '08_main.js'), encoding='utf-8').read(), 'journeys (0.4.0): the keys the saved-games page reads, and the autosave runs every frame')
 
 # ---- the release page (0.3.4): the hosted game alone; its buttons become Settings rows and a title option
 check(buildlib.site_names(plain)['playerPage'] is False and buildlib.site_names(dict(plain, site={'playerPage': True}))['playerPage'] is True, 'site.playerPage is off unless the game turns it on')
