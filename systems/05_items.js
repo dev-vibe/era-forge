@@ -4,7 +4,8 @@
 //  equipment pages of the pause menu; shops. Inventory transactions stay in their helpers (give, take, giveMon, giveWeapon... in
 //  05_field.js). Transient moment state is never saved: loading a journey must not replay old rewards.
 //  Reads only the game's content (01a_game.js), never a game's tables by name:
-//    items       { name, desc, price?, hp?, ki?, escape?, key? (a key item), quiet? (no automatic notice: the game stages it itself),
+//    items       { name, desc, price?, hp?, ki?, escape?, throw? (0.3.9: thrown at the foes in battle, see throwItem in the turn-battle
+//                  kit: { dmg: [lo, hi], all?, post?, fx?, sfx?, msg? }), key? (a key item), quiet? (no automatic notice: the game stages it itself),
 //                  taken? (the label shown when it leaves the pack, e.g. 'Given to the smith') }
 //    weapons     { name, atk, desc, price?, art?() -> a canvas drawn instead of the icon in its notice, shine? (a glint across it) }
 //    armors      { name, def, desc, price? }
@@ -152,6 +153,7 @@ function useItemField(id) {
   const it = itemDef(id);
   if (it.hp || it.ki) { if (partyAll().length > 1) { Menu.pick = { kind: 'item', id, i: 0 }; sfx('ok'); return; } return useItemOn(id, G.hero); }
   if (it.escape) return menuMsg('Use it in battle to escape.');
+  if (it.throw) return menuMsg(`Throw it in battle: Item, then ${it.name}.`);
   sfx('cursor'); menuMsg(it.desc);
 }
 MENU_STOCK.items = { label: 'Items', list: () => invList(), use: it => useItemField(it), info: it => itemDef(it).desc,

@@ -10,6 +10,7 @@ game has to touch a file of its own (a game that does none of the listed things 
 
 | Release | Commit | Game must change | In one line |
 | --- | --- | --- | --- |
+| 0.3.9 (13 Nov 2026) | `(this commit; recorded once merged)` | no (optional: an item's `throw`, `GAME_HOOKS.battleItem`) | thrown items: an item with `throw` is thrown at one foe or every foe in a fight (fixed damage, posture, the pot's flight and burst), the boss fights included; a game may answer a throw with a line |
 | 0.3.8 (8 Nov 2026) | `2b64be4dfe5c5b316fea128157d7689fbce51d48` | no (optional: `game.json` `text.readLog`) | the reading log: a game can keep, in each save, how long every line stayed up and whether it was pressed through while typing (`sysState('read')`, `readKey(who, text)`), for its writers |
 | 0.3.7 (4 Nov 2026) | `bb62627d7216bf93485ce8ea3f13c4f6387b0458` | no | docs only: `playbooks/game-design.md`, the game design playbook (what Ronin taught, as options and rules), linked from the README and the `next-job` and `new-game` skills |
 | 0.3.6 (4 Nov 2026) | `aa98e15c1a9854df0929d447a3f7345fe493d616` | no | the test runner never hangs: a test past `--timeout` (default 900 s) is stopped with its worker; a crashed tab fails its test instead of hanging; warm tabs get a memory budget from the machine's memory; workers read by threads (Windows) |
@@ -30,6 +31,25 @@ game has to touch a file of its own (a game that does none of the listed things 
 | 0.2.1 (30 Oct 2026) | `70eed01b5989223a1d3a2540ecdb2c97038d1f8d` | no | water behind fights, the hero's reflection on water, rings round his feet in moving water |
 | 0.2.0 (30 Oct 2026) | `9e7f08bff43c57cbce6457639ff64f75fecceaa1` | yes, if it uses a moved tool or its own page builder | the not-moved tools move in (their settings become the game's files), `TEST_JUMPS` and the generated test page, `fw-upgrade` |
 | 0.1.0 (29 Oct 2026) | `878da00e72d72e15576d472867ecada0252a7acf` | first release | the engine, tools and test kit moved out of Ronin |
+
+## 0.3.9 (13 Nov 2026)
+
+Ronin job horoku-cache (Ash, 13 Nov 2026: Tetsu's fire pots, picked up after his fight and thrown in later ones). Battle items could only
+heal, give Ki or escape; now one can be thrown at the foes:
+- **An item's `throw`** (`kits/battle-turn/07_battle.js`, `throwItem`; listed in `systems/05_items.js`): `{ dmg: [lo, hi], all?, post?,
+  fx?, sfx?, msg?, clip? }`. Item, then the item: with `all` it goes at every foe, else the player picks one. The member throws (its cast's
+  `throw` strip, phases `windup`, `cut`, `recover`, when it has one, or `clip`; else a lean on the ready pose); the pot flies in an arc
+  (the `pot` battle effect, as a foe's fire pot) to the foe or the middle of the group and lands on each: fixed damage in `dmg` (no
+  defence; x1.5 on a broken foe), posture damage `post` (default 3, so it can break a foe), the foe effect `fx`'s landing (default
+  `'fire'`), the sound `sfx` (default `'fire'`). It never misses. The message is "<name> <msg>" or "<name> throws <item>!". Unlike
+  smoke it may be used in a boss fight. Try again gives it back (the inventory is restored as before).
+- **`GAME_HOOKS.battleItem({ p, id, foes, hits })`** after a throw lands (`hits` = `[{ e, dmg, down }]`): a string is shown as the battle
+  message for a moment (e.g. a foe's reaction to his own fire pots).
+- From the menu a thrown item only says "Throw it in battle: Item, then <name>." and is not used.
+
+### What a game must change
+
+Nothing. A game without `throw` items plays as before.
 
 ## 0.3.8 (8 Nov 2026, commit `2b64be4`)
 

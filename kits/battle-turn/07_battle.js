@@ -15,6 +15,8 @@
 //  An enemy's `skills` (content kind enemies): [{ chance, heavy?, mult?, dmg?, debuff?, msg, tag?, fx?, sfx?,
 //    when?(e) (0.3.2: may it be planned this round), label? (0.3.2: shown over the foe while the party chooses, the one plan labelled),
 //    act? (0.3.2: a name; the game's own action instead of a blow: GAME_HOOKS.foeAct(e, plan) queues its steps and returns true) }]
+//  An item's `throw` (0.3.9): thrown at one foe, or every foe with `all`, for fixed damage; GAME_HOOKS.battleItem may answer with a line
+//    (throwItem below).
 //  A fight's own options besides the kit's: drawBack(L, sx, sy) (0.3.2: drawn over the backdrop, under the fighters), onStart(B), onWin().
 // ============================================================
 const B = {};
@@ -631,6 +633,11 @@ function useGuard(p) {
 }
 function useItem(p, id) {
   const it = contentGet('items', id);
+  if (it.throw) {   // 0.3.9: thrown at the foes (one chosen, or every foe with `all`); usable in boss fights too
+    const go = foes => { take(id); B.phase = 'busy'; throwItem(p, id, foes); endTurn(); };
+    if (it.throw.all) go(alive()); else chooseTarget(e => go([e]));
+    return;
+  }
   if (it.escape) {
     if (B.opts.boss) { sfx('deny'); B.msg = 'Smoke will not help you here.'; return; }
     take(id); itemUsed(id, p.m, [p.sx ?? p.x, (p.sy ?? p.y) - 45]); B.phase = 'busy'; runOff(solo() ? `${GAME.hero.name} vanishes in a cloud of smoke!` : 'The party vanishes in a cloud of smoke!'); return;
@@ -646,6 +653,44 @@ function useItem(p, id) {
     });
     endTurn();
   });
+}
+// 0.3.9: a thrown item (an item's `throw`: { dmg: [lo, hi], all?, post?, fx?, sfx?, msg?, clip? }). The member throws; it flies in an arc to
+// the foe (to the middle of the group with `all`) and lands on every foe in `foes`: fixed damage (no defence; x1.5 on a broken foe),
+// posture damage `post` (default 3), the effect `fx` (a foe-effect kind of 07d whose 'hit' draws the landing; default 'fire', the pot).
+// It never misses. GAME_HOOKS.battleItem({ p, id, foes, hits }) may answer with a line (a string) shown after it lands, e.g. a foe's
+// reaction to being hit with his own fire pots; hits = [{ e, dmg, down }].
+function throwItem(p, id, foes) {
+  const it = contentGet('items', id), th = it.throw, kind = th.fx || 'fire';
+  // the thrower's own strip (`throw.clip`, default 'throw'; phases windup, cut, recover) when the cast has one; else a lean on the ready pose
+  const cast = p.m ? memberCastId(p.m) : null, cn = th.clip || 'throw', clip = cast && clipDef(cast, cn) ? cn : null;
+  let pot = null, hits = [];
+  const aim = () => { const l = foes.filter(e => e.alive); if (!l.length) return null;
+    return { x: l.reduce((a, e) => a + fxX(e), 0) / l.length, y: l.reduce((a, e) => a + fxBodyY(e), 0) / l.length }; };
+  q(1, () => { B.msg = th.msg ? `${p.name} ${th.msg}` : `${p.name} throws ${it.name}!`; p.pose = 'ready'; if (clip) setClip(p, cast, clip, 'windup', 8); });
+  q(8, null, t => { if (!clip) p.off = 6 * Math.sin(t / 8 * Math.PI / 2); });
+  q(18, () => { const a = aim(); if (!a) return; if (clip) setClip(p, cast, clip, 'cut', 11);
+      pot = bfx('pot', { x0: fxX(p) - 18, y0: fxBodyY(p, 0.65), x1: a.x, y1: a.y, apex: 72, life: 18 }); sfx('arrow', 0.5); },
+    t => { if (pot) pot.progress = t / 18; if (!clip) p.off = t < 6 ? 6 - 18 * t / 6 : -12 * (1 - (t - 6) / 12); });
+  q(1, () => {
+    if (pot) pot.progress = 1;
+    for (const e of foes) {
+      if (!e.alive) continue;
+      let dmg = ri(th.dmg[0], th.dmg[1]); if (e.broken) dmg = Math.round(dmg * 1.5);
+      foeFx(kind, 'hit', p, e);
+      e.hp -= dmg; e.flash = 10; e.hurt = 16; pop(e.x, e.y - (e.d.scale ? 96 : 62), String(dmg), e.broken ? '#ffd080' : '#ffb65b', true);
+      if (enemyCast(e.id)) setClip(e, enemyCast(e.id)[0], 'hit', e.hp <= 0 ? 'heavy' : 'light', e.hp <= 0 ? 20 : 16, e.hp <= 0);
+      fxMove(e, 'recoil', 24);
+      const down = e.hp <= 0;
+      if (down) { e.hp = 0; e.alive = false; e.pose = 'down'; }
+      else if (!e.broken) { e.post -= th.post == null ? 3 : th.post; if (e.post <= 0) breakEnemy(e); }
+      hits.push({ e, dmg, down });
+    }
+    sfx(th.sfx || 'fire'); B.shake = Math.max(B.shake, 9); B.stop = Math.max(B.stop, 5);
+  });
+  q(16, () => { p.off = 0; if (clip) setClip(p, cast, clip, 'recover', 12); });
+  q(1, () => { p.pose = null; p.clip = null; p.off = 0;
+    const line = gameHook('battleItem', { p, id, foes, hits });
+    if (typeof line === 'string' && line) { B.msg = line; B.q.splice(1, 0, { d: 80, t: 0 }); } });
 }
 
 // ---------------- the boss standoff ----------------
