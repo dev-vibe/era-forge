@@ -38,7 +38,7 @@ Ronin job horoku-cache (Ash, 13 Nov 2026: Tetsu's fire pots, picked up after his
 heal, give Ki or escape; now one can be thrown at the foes:
 - **An item's `throw`** (`kits/battle-turn/07_battle.js`, `throwItem`; listed in `systems/05_items.js`): `{ dmg: [lo, hi], all?, post?,
   fx?, sfx?, msg?, clip? }`. Item, then the item: with `all` it goes at every foe, else the player picks one. The member throws (its cast's
-  `throw` strip, phases `windup`, `cut`, `recover`, when it has one, or `clip`; else a lean on the ready pose); the pot flies in an arc
+  `throw` strip, phases `windup`, `cut`, `recover`, when it has one, or `clip`; windup over 14 ticks; else a lean on the ready pose); the pot flies in an arc
   (the `pot` battle effect, as a foe's fire pot) to the foe or the middle of the group and lands on each: fixed damage in `dmg` (no
   defence; x1.5 on a broken foe), posture damage `post` (default 3, so it can break a foe), the foe effect `fx`'s landing (default
   `'fire'`), the sound `sfx` (default `'fire'`). It never misses. The message is "<name> <msg>" or "<name> throws <item>!". Unlike

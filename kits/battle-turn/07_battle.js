@@ -666,8 +666,8 @@ function throwItem(p, id, foes) {
   let pot = null, hits = [];
   const aim = () => { const l = foes.filter(e => e.alive); if (!l.length) return null;
     return { x: l.reduce((a, e) => a + fxX(e), 0) / l.length, y: l.reduce((a, e) => a + fxBodyY(e), 0) / l.length }; };
-  q(1, () => { B.msg = th.msg ? `${p.name} ${th.msg}` : `${p.name} throws ${it.name}!`; p.pose = 'ready'; if (clip) setClip(p, cast, clip, 'windup', 8); });
-  q(8, null, t => { if (!clip) p.off = 6 * Math.sin(t / 8 * Math.PI / 2); });
+  q(1, () => { B.msg = th.msg ? `${p.name} ${th.msg}` : `${p.name} throws ${it.name}!`; p.pose = 'ready'; if (clip) setClip(p, cast, clip, 'windup', 14); });
+  q(14, null, t => { if (!clip) p.off = 6 * Math.sin(t / 14 * Math.PI / 2); });   // the wind-up: long enough to read the reach for the pot
   q(18, () => { const a = aim(); if (!a) return; if (clip) setClip(p, cast, clip, 'cut', 11);
       pot = bfx('pot', { x0: fxX(p) - 18, y0: fxBodyY(p, 0.65), x1: a.x, y1: a.y, apex: 72, life: 18 }); sfx('arrow', 0.5); },
     t => { if (pot) pot.progress = t / 18; if (!clip) p.off = t < 6 ? 6 - 18 * t / 6 : -12 * (1 - (t - 6) / 12); });
