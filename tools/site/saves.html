@@ -7,19 +7,22 @@ body{color:#eadcbf;background:#171014;font:17px/1.6 system-ui;max-width:660px;ma
 <p><a href="/">← Back to __GAME__</a></p><h1>Saved games</h1>
 <p>Keep a copy of your journey or bring a __GAME__ save file to this browser. Files stay on your device.</p>
 <p id="player" hidden>Signed in as <b></b>: these are your saves on this browser; other players' saves here stay their own.<span id="signout"> <a href="__SIGN_OUT__">Sign out</a></span></p>
-<section><h2>Download your journey</h2><p>In the game, open the menu and choose Save first. This downloads that last saved journey.</p>
-<button id="download">Download save</button> <button id="backup" hidden>Download previous save</button></section>
-<section><h2>Bring a journey here</h2><p>Choose a __GAME__ save file, check the journey, then import it. Your existing save will be kept as a backup.</p>
+<section><h2>Your journeys</h2><p>The game saves each journey by itself as you play. Download one to keep a copy or to play it on another device.</p>
+<div id="journeys"></div></section>
+<section><h2>Bring a journey here</h2><p>Choose a __GAME__ save file, check the journey, then import it. It becomes a journey of its own: your other journeys stay as they are.</p>
 <input id="file" type="file" accept=".json,application/json" aria-label="Choose a __GAME__ save file">
 <p id="candidate"></p><button id="import" disabled>Import this journey</button></section>
 <section id="before" hidden><h2>A journey from before sign-in</h2><p>This browser still has a journey saved before players signed in. Download it, then import it above to make it yours.</p>
 <button id="before-download">Download that save</button></section>
 <p id="status" role="status" aria-live="polite"></p>
-<small>Saves belong to this browser and website. Importing here does not change a save on another website. After importing, reload the game and choose Continue.</small>
+<small>Saves belong to this browser and website. Importing here does not change a save on another website. After importing, go back to the game and choose Continue (or the journey under Saved games).</small>
 <script>
 'use strict';
 // 0.3.3: on a host that signs players in, each player's saves carry '@<name>' (core/01_core.js playerKey); the plain key is a journey saved before sign-in
-const P=window.GAME_PLAYER||'', at=k=>P?k+'@'+P:k, PLAIN='__SAVE_KEY__', KEY=at(PLAIN), BACKUP=at('__BACKUP_KEY__'); let candidate=null;
+// 0.4.0: a player has up to __JOURNEYS__ journeys (core/01f_journeys.js): journey 1 is the plain key, journey n the key with _j<n>; an import
+// goes into the first free journey and never replaces one
+const P=window.GAME_PLAYER||'', at=k=>P?k+'@'+P:k, PLAIN='__SAVE_KEY__', JMAX=__JOURNEYS__, KEY=at(PLAIN), BACKUP=at('__BACKUP_KEY__'); let candidate=null;
+const jkey=n=>at(PLAIN+(n>1?'_j'+n:''));
 if(P){const p=document.getElementById('player');p.querySelector('b').textContent=P;p.hidden=false;if(!'__SIGN_OUT__')document.getElementById('signout').remove();}
 const status=document.getElementById('status'), pick=document.getElementById('file'), apply=document.getElementById('import');
 function validSave(d){
@@ -43,12 +46,20 @@ function download(key,name){
     a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status.textContent='Your save file is ready.';
   }catch(e){status.textContent='This browser did not allow access to saved games.';}
 }
-document.getElementById('download').onclick=()=>download(KEY,'__GAMEID__-save'+(P?'-'+P:'')+'.json');
+function readJ(n){try{const d=JSON.parse(localStorage.getItem(jkey(n))||'null');return d&&d.v===3&&d.hero?d:null;}catch(e){return null;}}
+function freeJ(){for(let n=1;n<=JMAX;n++)if(!readJ(n))return n;return 0;}
+function listJourneys(){
+  const box=document.getElementById('journeys');box.textContent='';let any=false;
+  for(let n=1;n<=JMAX;n++){const d=readJ(n);if(!d)continue;any=true;
+    const p=document.createElement('p'),b=document.createElement('button');
+    p.textContent='Journey '+n+': __HERO__, Level '+d.hero.lv+' · '+d.hero.mon+' __CURRENCY__'+(Number.isFinite(d.t)?' · saved '+new Date(d.t).toISOString().slice(0,10):'')+' ';
+    b.textContent='Download';b.className='download';b.dataset.n=n;b.onclick=()=>download(jkey(n),'__GAMEID__-journey-'+n+(P?'-'+P:'')+'.json');p.append(b);box.append(p);}
+  if(!any)box.textContent='No saved journey in this browser yet.';
+  try{const old=document.getElementById('backup');if(old)old.remove();if(localStorage.getItem(BACKUP)){const p=document.createElement('p'),b=document.createElement('button');p.textContent='A journey replaced by an import before journeys came in: ';b.id='backup';b.textContent='Download it';b.onclick=()=>download(BACKUP,'__GAMEID__-previous-save'+(P?'-'+P:'')+'.json');p.append(b);box.append(p);}}catch(e){}
+}
+listJourneys();
 try{if(P&&localStorage.getItem(PLAIN))document.getElementById('before').hidden=false;}catch(e){}
 document.getElementById('before-download').onclick=()=>download(PLAIN,'__GAMEID__-save-before-sign-in.json');
-const backup=document.getElementById('backup');
-try{backup.hidden=!localStorage.getItem(BACKUP);}catch(e){}
-backup.onclick=()=>download(BACKUP,'__GAMEID__-previous-save'+(P?'-'+P:'')+'.json');
 pick.onchange=async()=>{
   candidate=null;apply.disabled=true;document.getElementById('candidate').textContent='';status.textContent='';
   try{
@@ -59,10 +70,10 @@ pick.onchange=async()=>{
 };
 apply.onclick=()=>{
   if(!candidate)return;
+  const n=freeJ();if(!n){status.textContent='All '+JMAX+' journeys are in use. Delete one in the game (Saved games) first.';return;}
   try{
-    const old=localStorage.getItem(KEY);if(old)localStorage.setItem(BACKUP,old);
-    localStorage.setItem(KEY,JSON.stringify(candidate));backup.hidden=!old;candidate=null;apply.disabled=true;
-    status.textContent='Journey imported. Reload the game and choose Continue.';
-  }catch(e){status.textContent='The save could not be stored. Your existing journey has not been replaced.';}
+    candidate.t=Date.now();localStorage.setItem(jkey(n),JSON.stringify(candidate));candidate=null;apply.disabled=true;listJourneys();
+    status.textContent='Journey imported as Journey '+n+'. Go back to the game and choose Continue.';
+  }catch(e){status.textContent='The save could not be stored. Your journeys have not been changed.';}
 };
 </script></body></html>

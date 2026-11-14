@@ -82,6 +82,14 @@ A game with its own, older test hub keeps it; the generated page is added beside
 sessionStorage prefix of a test page's settings, default `<id>_test_controls_`; `saveBackupKey` the saved-games page's backup key,
 default `saveKey` with `_vN` turned into `_backup_vN`). A game may put its own file of the same name in `tools/site/` and it is used as it is.
 
+**Journeys and autosave (0.4.0).** A player keeps several journeys in the browser (`game.json` `saves.journeys`, default 6), and each
+one saves itself: whenever the player has control again after something happened (a talk, a fight, a cutscene, the menu, a new place),
+and every `saves.every` seconds of play (default 120); never during a dialog, cutscene, fade or minigame (`core/01f_journeys.js`;
+`GAME_HOOKS.autosaveBlock()` can hold it back; `saves.autosave: false` turns it off). One save per journey. The title: Continue (the
+latest journey), New Journey (a free one), Saved games (the journeys: Play, Delete; on the release page also the save files page),
+Settings. Journey 1 is the plain save key, so a save from before 0.4.0 is journey 1; journey n adds `_j<n>`, before any `@<name>`.
+The menu's stock Save page still writes the journey being played, for a game that wants one.
+
 **The release page (0.3.4).** `game.json` `site.playerPage: true` makes the hosted game page (`/`) the game alone, filling the window:
 no key strip, buttons or links around it (test and review pages keep theirs and are reached by their address). Its Settings page gains
 Sound, Full screen, Touch pad and (with signed-in players) Signed in / Sign out; its title gains Saved games.
